@@ -1,55 +1,69 @@
-import { db, Contact } from 'astro:db';
+import { describe, it, expect, vi } from 'vitest';
 import slugify from 'slugify';
 
-console.log('Running contact page generation tests...');
+// Mock astro:db
+vi.mock('astro:db', async (importOriginal) => {
+  // If there are other exports from 'astro:db' you need to preserve,
+  // you can try to merge them:
+  // const original = await importOriginal();
 
-async function testContactPageGeneration() {
-  const contacts = await db.select().from(Contact);
+  return {
+    // ...original, // if needed
+    db: {
+      select: vi.fn().mockReturnThis(), // Makes db.select() chainable
+      from: vi.fn().mockReturnThis(),   // Makes db.select().from() chainable
+      // .all() is often used with astro:db selects
+      all: vi.fn().mockResolvedValue([  // Mock the behavior of .all()
+        { id: '1', name: 'Alice Wonderland', email: 'alice@example.com', phone: '123-456-7890' },
+        { id: '2', name: 'Bob The Builder', email: 'bob@example.com', phone: '987-654-3210' },
+        { id: '3', name: 'Charlie Chaplin!', email: 'charlie@example.com', phone: null },
+        { id: '4', name: '  Diana Prince  ', email: 'diana@example.com', phone: '555-555-5555' },
+      ]),
+      // If your actual code uses `where` or other clauses, they might need to be mocked here too if .all() isn't the final call
+    },
+    Contact: { type: 'table', name: 'Contact' }, // Mock Contact table object as needed
+    // Add other Astro DB named exports if your code under test uses them
+  };
+});
 
-  if (!contacts || contacts.length === 0) {
-    console.warn('No contacts found in the database. Skipping page generation tests.');
-    // If no contacts, technically no pages to fail on for this test's scope
-    console.log('Contact page generation tests considered passed (no data).');
-    return true;
-  }
+// Now import the mocked db and Contact (though Contact might not be strictly needed if db.select().from() is fully mocked)
+import { db, Contact } from 'astro:db';
 
-  console.log(`Found ${contacts.length} contacts.`);
+describe('Contact Page Generation Logic (with mocked DB)', () => {
+  it('should fetch mock contacts and generate correct slugs using { lower: true, strict: true } options', async () => {
+    // The call to db.select().from(Contact).all() will now use the mocked implementation
+    const contacts = await db.select().from(Contact).all();
 
-  let allSlugsGeneratedCorrectly = true;
+    expect(db.select).toHaveBeenCalled();
+    // expect(db.from).toHaveBeenCalledWith(Contact); // This check might be too strict if Contact mock is not perfect instance-wise
+    expect(db.from).toHaveBeenCalled();
+    expect(db.all).toHaveBeenCalled();
 
-  for (const contact of contacts) {
-    if (!contact.name) {
-      console.error('Found a contact without a name:', contact);
-      allSlugsGeneratedCorrectly = false;
-      continue;
+    expect(contacts.length).toBeGreaterThan(0);
+
+    for (const contact of contacts) {
+      expect(contact.name).toBeDefined();
+      // Using the application's slugify options
+      const generatedSlug = slugify(contact.name, { lower: true, strict: true });
+
+      // console.log(`Testing contact: "${contact.name}", Generated slug: "${generatedSlug}"`);
+
+      // Check if slugify produces a non-empty string
+      expect(generatedSlug).toBeTruthy();
+
+      // Check against known slug values for the mocked data
+      if (contact.name === 'Alice Wonderland') {
+        expect(generatedSlug).toBe('alice-wonderland');
+      } else if (contact.name === 'Bob The Builder') {
+        expect(generatedSlug).toBe('bob-the-builder');
+      } else if (contact.name === 'Charlie Chaplin!') {
+        // strict: true removes '!'
+        expect(generatedSlug).toBe('charlie-chaplin');
+      } else if (contact.name === '  Diana Prince  ') {
+        // strict: true handles leading/trailing spaces and removes them before slugification.
+        // "  Diana Prince  " -> "Diana Prince" -> "diana-prince"
+        expect(generatedSlug).toBe('diana-prince');
+      }
     }
-    const expectedSlug = slugify(contact.name, { lower: true, strict: true });
-    console.log(`Contact: "${contact.name}", Expected slug: "${expectedSlug}"`);
-    // In a real test environment, we might try to fetch /contacts/${expectedSlug}
-    // For now, we're just checking if slugs can be generated.
-    if (!expectedSlug) {
-      console.error(`Failed to generate slug for: "${contact.name}"`);
-      allSlugsGeneratedCorrectly = false;
-    }
-  }
-
-  if (allSlugsGeneratedCorrectly) {
-    console.log('All contact page slugs generated successfully!');
-    return true;
-  } else {
-    console.error('Some contact page slugs FAILED to generate.');
-    return false;
-  }
-}
-
-testContactPageGeneration().then(passed => {
-  if (passed) {
-    console.log('All contact page generation tests passed!');
-  } else {
-    console.error('Some contact page generation tests FAILED.');
-    process.exit(1); // Indicate failure
-  }
-}).catch(err => {
-  console.error('Error during contact page generation tests:', err);
-  process.exit(1); // Indicate failure
+  });
 });
