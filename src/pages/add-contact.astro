@@ -1,5 +1,9 @@
 ---
-import { db, Contact } from 'astro:db';
+import { db, Contact, eq } from 'astro:db';
+// slugify import is no longer needed here directly, it's in slugUtils
+import { generateUniqueSlug } from '../utils/slugUtils'; // Corrected path
+
+// Removed local generateUniqueSlug function
 
 if (Astro.request.method === 'POST') {
   const formData = await Astro.request.formData();
@@ -7,11 +11,14 @@ if (Astro.request.method === 'POST') {
   const email = formData.get('email') as string;
   const phone = formData.get('phone') as string;
 
-  await db.insert(Contact).values({ name, email, phone });
+  // Call the imported function. For add-contact, excludeId is not needed (or can be null).
+  const slug = await generateUniqueSlug(name);
+
+  await db.insert(Contact).values({ name, email, phone, slug });
   return Astro.redirect('/');
 }
 ---
-<form method="POST">
+<form method="POST" enctype="application/x-www-form-urlencoded">
   <label for="name">Name:</label>
   <input type="text" id="name" name="name" required />
 

@@ -1,7 +1,12 @@
 ---
-import { db, Contact, eq } from 'astro:db';
+import { db, Contact, eq, ne } from 'astro:db';
+// slugify import is no longer needed here directly, it's in slugUtils
+import { generateUniqueSlug } from '../../../utils/slugUtils';
 
 const { id } = Astro.params;
+const contactId = Number(id);
+
+// Removed local generateUniqueSlug function
 
 if (Astro.request.method === 'POST') {
   const formData = await Astro.request.formData();
@@ -9,11 +14,35 @@ if (Astro.request.method === 'POST') {
   const email = formData.get('email') as string;
   const phone = formData.get('phone') as string;
 
-  await db.update(Contact).set({ name, email, phone }).where(eq(Contact.id, Number(id)));
+  const existingContact = await db.select().from(Contact).where(eq(Contact.id, contactId)).get();
+
+  if (!existingContact) {
+    // Handle case where contact is not found, e.g., return a 404 or redirect
+    // For now, let's assume it will be found or redirect.
+    return new Response("Contact not found", { status: 404 });
+  }
+
+  let newSlug = existingContact.slug;
+  if (name !== existingContact.name) {
+    newSlug = await generateUniqueSlug(name, contactId);
+  }
+
+  await db.update(Contact).set({
+    name,
+    email,
+    phone,
+    slug: newSlug
+  }).where(eq(Contact.id, contactId));
+
   return Astro.redirect('/');
 }
 
-const contact = await db.select().from(Contact).where(eq(Contact.id, Number(id))).get();
+const contact = await db.select().from(Contact).where(eq(Contact.id, contactId)).get();
+
+// Fallback if contact is not found for GET request
+if (!contact) {
+  return new Response("Contact not found", { status: 404 });
+}
 ---
 <form method="POST">
   <label for="name">Name:</label>

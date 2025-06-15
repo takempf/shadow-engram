@@ -7,6 +7,7 @@ const Contact = defineTable({
     name: column.text(),
     email: column.text({ unique: true }),
     phone: column.text({ optional: true }), // Phone number is optional
+    slug: column.text(), // New slug field
   },
 });
 

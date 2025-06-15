@@ -6,10 +6,18 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@astrojs/db": "^0.15.0",
-    "astro": "^5.9.3"
+    "astro": "^5.9.3",
+    "slugify": "^1.6.6"
+  },
+  "devDependencies": {
+    "happy-dom": "^18.0.1",
+    "jsdom": "^26.1.0",
+    "vitest": "^3.2.3"
   }
 }
