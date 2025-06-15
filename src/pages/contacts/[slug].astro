@@ -1,0 +1,27 @@
+---
+import { db, Contact } from 'astro:db';
+import slugify from 'slugify';
+import Layout from '../../layouts/Layout.astro';
+
+export async function getStaticPaths() {
+  const contacts = await db.select().from(Contact);
+
+  return contacts.map((contact) => {
+    const slug = slugify(contact.name, { lower: true, remove: /[^\w\s-]/g });
+    return {
+      params: { slug },
+      props: { contact },
+    };
+  });
+}
+
+const { contact } = Astro.props;
+---
+<Layout title={contact.name}>
+  <h1>{contact.name}</h1>
+  <p>Email: {contact.email}</p>
+  <p>Phone: {contact.phone}</p>
+  {contact.address && <p>Address: {contact.address}</p>}
+  {contact.notes && <p>Notes: {contact.notes}</p>}
+  <a href="/">Back to Contacts</a>
+</Layout>

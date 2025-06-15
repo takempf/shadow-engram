@@ -6,10 +6,12 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "test": "node src/tests/slugify.test.js"
   },
   "dependencies": {
     "@astrojs/db": "^0.15.0",
-    "astro": "^5.9.3"
+    "astro": "^5.9.3",
+    "slugify": "^1.6.6"
   }
 }
