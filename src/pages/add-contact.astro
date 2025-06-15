@@ -1,0 +1,25 @@
+---
+import { db, Contact } from 'astro:db';
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const name = formData.get('name') as string;
+  const email = formData.get('email') as string;
+  const phone = formData.get('phone') as string;
+
+  await db.insert(Contact).values({ name, email, phone });
+  return Astro.redirect('/');
+}
+---
+<form method="POST">
+  <label for="name">Name:</label>
+  <input type="text" id="name" name="name" required />
+
+  <label for="email">Email:</label>
+  <input type="email" id="email" name="email" required />
+
+  <label for="phone">Phone:</label>
+  <input type="tel" id="phone" name="phone" />
+
+  <button type="submit">Add Contact</button>
+</form>

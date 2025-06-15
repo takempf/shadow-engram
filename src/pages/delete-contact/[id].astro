@@ -1,0 +1,10 @@
+---
+import { db, Contact, eq } from 'astro:db';
+
+const { id } = Astro.params;
+
+if (Astro.request.method === 'POST') {
+  await db.delete(Contact).where(eq(Contact.id, Number(id)));
+  return Astro.redirect('/');
+}
+---

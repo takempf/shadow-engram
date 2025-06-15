@@ -1,11 +1,21 @@
 ---
-import Welcome from '../components/Welcome.astro';
-import Layout from '../layouts/Layout.astro';
+// src/pages/index.astro
+import { db, Contact } from 'astro:db';
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+const contacts = await db.select().from(Contact);
 ---
-
-<Layout>
-	<Welcome />
-</Layout>
+<h1>My Contacts</h1>
+<ul>
+  {contacts.map(contact => (
+    <li>
+      <strong>{contact.name}</strong><br/>
+      Email: {contact.email}<br/>
+      {contact.phone && `Phone: ${contact.phone}`}
+      <a href={`/edit-contact/${contact.id}`}>Edit</a>
+      <form method="POST" action={`/delete-contact/${contact.id}`}>
+        <button type="submit">Delete</button>
+      </form>
+    </li>
+  ))}
+</ul>
+<a href="/add-contact">Add New Contact</a>
