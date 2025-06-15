@@ -1,6 +1,6 @@
-// src/tests/slugUtils.test.js
+// src/utils/slugUtils.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { generateUniqueSlug } from '../utils/slugUtils'; // Path to the new util
+import { generateUniqueSlug } from './slugUtils'; // Updated path
 
 // This will store our mock contacts for each test scenario
 const mockDbContacts = [];
@@ -53,6 +53,8 @@ vi.mock('astro:db', () => {
   };
 });
 
+// Import 'db' after the mock is set up so the tests can access the mocked db object
+import { db } from 'astro:db';
 
 describe('generateUniqueSlug', () => {
   beforeEach(() => {
@@ -68,8 +70,8 @@ describe('generateUniqueSlug', () => {
   it('should return the original slug if it is unique', async () => {
     const slug = await generateUniqueSlug('New Contact');
     expect(slug).toBe('new-contact');
-    // Check that db.select().from().where().get() was called once for the initial slug check
-    expect(db.select().from().where().get).toHaveBeenCalledTimes(1);
+    // Check that db.get was called (it's the final step in the query chain)
+    expect(db.get).toHaveBeenCalledTimes(1);
   });
 
   it('should append -1 if original slug exists once', async () => {
@@ -77,7 +79,7 @@ describe('generateUniqueSlug', () => {
     const slug = await generateUniqueSlug('Existing Contact');
     expect(slug).toBe('existing-contact-1');
     // Initial check for 'existing-contact', then check for 'existing-contact-1'
-    expect(db.select().from().where().get).toHaveBeenCalledTimes(2);
+    expect(db.get).toHaveBeenCalledTimes(2);
   });
 
   it('should increment number if multiple slugs exist', async () => {
@@ -86,7 +88,7 @@ describe('generateUniqueSlug', () => {
     const slug = await generateUniqueSlug('Test');
     expect(slug).toBe('test-2');
     // test (exists) -> test-1 (exists) -> test-2 (unique)
-    expect(db.select().from().where().get).toHaveBeenCalledTimes(3);
+    expect(db.get).toHaveBeenCalledTimes(3);
   });
 
   it('should not conflict with its own slug when excludeId is provided and name is unchanged', async () => {
@@ -95,7 +97,7 @@ describe('generateUniqueSlug', () => {
     const slug = await generateUniqueSlug('My Contact', 1);
     expect(slug).toBe('my-contact');
     // Initial check for 'my-contact' (excluding id 1). Should not find a conflict.
-    expect(db.select().from().where().get).toHaveBeenCalledTimes(1);
+    expect(db.get).toHaveBeenCalledTimes(1);
   });
 
   it('should generate a new numbered slug if name changes to an existing slug (even if that slug belongs to another contact)', async () => {
@@ -108,7 +110,7 @@ describe('generateUniqueSlug', () => {
     expect(slug).toBe('new-name-target-1');
     // Check for 'new-name-target' (excluding id 1) - finds contact 2.
     // Check for 'new-name-target-1' (excluding id 1) - finds nothing.
-    expect(db.select().from().where().get).toHaveBeenCalledTimes(2);
+    expect(db.get).toHaveBeenCalledTimes(2);
   });
 
    it('should correctly generate a unique slug when the base slug exists multiple times for other contacts', async () => {
@@ -117,7 +119,7 @@ describe('generateUniqueSlug', () => {
     // Trying to create/update a contact (id 1) to have the name "Another User"
     const slug = await generateUniqueSlug('Another User', 1);
     expect(slug).toBe('another-user-2');
-    expect(db.select().from().where().get).toHaveBeenCalledTimes(3); // another-user, another-user-1, another-user-2
+    expect(db.get).toHaveBeenCalledTimes(3); // another-user, another-user-1, another-user-2
   });
 
   it('should handle empty string name gracefully', async () => {

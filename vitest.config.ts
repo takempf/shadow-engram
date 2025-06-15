@@ -9,7 +9,7 @@ export default defineConfig({
     globals: true, // to use Vitest globals without importing them
     alias: {
       // Ensure Vitest can resolve 'astro:db' to the mock implementation
-      'astro:db': path.resolve(__dirname, './src/tests/mocks/astro-db.js'),
+      'astro:db': path.resolve(__dirname, './src/mocks/astro-db.js'), // Updated path
     },
   },
 });
