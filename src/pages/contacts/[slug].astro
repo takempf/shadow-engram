@@ -1,18 +1,25 @@
 ---
 import { db, Contact } from 'astro:db';
-import slugify from 'slugify';
+// slugify import removed
 import Layout from '../../layouts/Layout.astro';
 
 export async function getStaticPaths() {
-  const contacts = await db.select().from(Contact);
+  const contacts = await db.select().from(Contact).all(); // Use .all() to fetch all records
 
-  return contacts.map((contact) => {
-    const slug = slugify(contact.name, { lower: true, remove: /[^\w\s-]/g });
+  return contacts.map(contact => {
+    // Ensure contact.slug is not null or undefined before using it.
+    // If a contact somehow misses a slug, this could cause an error or an invalid path.
+    // For this task, we assume slugs are always present if the previous steps were done correctly.
+    if (!contact.slug) {
+      // Optionally, skip this contact or throw an error if a slug is missing
+      console.warn(`Contact with ID ${contact.id} and name "${contact.name}" is missing a slug. Skipping path generation.`);
+      return null; // This will be filtered out later
+    }
     return {
-      params: { slug },
+      params: { slug: contact.slug }, // Use the stored slug
       props: { contact },
     };
-  });
+  }).filter(path => path !== null); // Filter out any null entries due to missing slugs
 }
 
 const { contact } = Astro.props;

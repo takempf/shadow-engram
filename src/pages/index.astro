@@ -1,17 +1,15 @@
 ---
 // src/pages/index.astro
-import { db, Contact } from 'astro:db';
-import slugify from 'slugify';
+import { db, Contact } from 'astro:db'; // slugify import removed
 
-const contacts = await db.select().from(Contact);
+const contacts = await db.select().from(Contact).all(); // Assuming .all() to fetch all contacts
 ---
 <h1>My Contacts</h1>
 <ul>
-  {contacts.map(contact => {
-    const slug = slugify(contact.name, { lower: true, strict: true });
-    return (
+  {contacts.map(contact => ( // Simplified map, no need for explicit return block if slug generation is removed
     <li>
-      <strong><a href={`/contacts/${slug}`}>{contact.name}</a></strong><br/>
+      {/* Ensure contact.slug is available. If not, link might be broken. */}
+      <strong><a href={`/contacts/${contact.slug}`}>{contact.name}</a></strong><br/>
       Email: {contact.email}<br/>
       {contact.phone && `Phone: ${contact.phone}`}
       <a href={`/edit-contact/${contact.id}`}>Edit</a>
@@ -19,7 +17,6 @@ const contacts = await db.select().from(Contact);
         <button type="submit">Delete</button>
       </form>
     </li>
-    );
-  })}
+  ))}
 </ul>
 <a href="/add-contact">Add New Contact</a>
