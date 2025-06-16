@@ -1,58 +1,249 @@
 ---
-import { db, Contact, eq, ne } from 'astro:db';
-// slugify import is no longer needed here directly, it's in slugUtils
-import { generateUniqueSlug } from '../../../utils/slugUtils';
+import Layout from '../../layouts/Layout.astro';
+import { db, Contact, Names, EmailAddresses, PhoneNumbers, Addresses, Jobs, GithubProfiles, GameAccounts, StravaAccounts, Notes, eq, and } from 'astro:db';
+import { slugifyName } from '../../utils/slugUtils';
 
 const { id } = Astro.params;
-const contactId = Number(id);
+const contactIdNum = parseInt(id);
 
-// Removed local generateUniqueSlug function
+let pageError = Astro.url.searchParams.get('error');
+let pageSuccess = Astro.url.searchParams.get('success');
 
-if (Astro.request.method === 'POST') {
-  const formData = await Astro.request.formData();
-  const name = formData.get('name') as string;
-  const email = formData.get('email') as string;
-  const phone = formData.get('phone') as string;
+// Data for form population
+let contact = null;
+let currentPrimaryName = "";
+let givenName = "";
+let familyName = "";
+let primaryEmail = "";
+let primaryPhone = "";
+let primaryAddress = { street: '', city: '', zip: '', country: '' };
+let primaryJob = { company: '', role: '', linkedInUsername: '' };
+let githubUsernameValue = '';
+let stravaUsernameValue = '';
+let gameAccountsValues = { steam: '', psn: '', xbox: '', nintendo: '' };
+let primaryNote = { name: '', value: '' };
 
-  const existingContact = await db.select().from(Contact).where(eq(Contact.id, contactId)).get();
 
-  if (!existingContact) {
-    // Handle case where contact is not found, e.g., return a 404 or redirect
-    // For now, let's assume it will be found or redirect.
-    return new Response("Contact not found", { status: 404 });
-  }
+if (isNaN(contactIdNum)) {
+    pageError = "Invalid contact ID.";
+} else {
+    contact = await db.select().from(Contact).where(eq(Contact.id, contactIdNum)).get();
+    if (contact) {
+        const existingNames = await db.select().from(Names).where(eq(Names.contactId, contactIdNum)).all();
+        currentPrimaryName = existingNames.find(n => n.name === 'primary')?.value || '';
+        givenName = existingNames.find(n => n.name === 'givenName')?.value || '';
+        familyName = existingNames.find(n => n.name === 'familyName')?.value || '';
 
-  let newSlug = existingContact.slug;
-  if (name !== existingContact.name) {
-    newSlug = await generateUniqueSlug(name, contactId);
-  }
+        primaryEmail = (await db.select().from(EmailAddresses).where(and(eq(EmailAddresses.contactId, contactIdNum), eq(EmailAddresses.name, 'primary'))).get())?.value || '';
+        primaryPhone = (await db.select().from(PhoneNumbers).where(and(eq(PhoneNumbers.contactId, contactIdNum), eq(PhoneNumbers.name, 'primary'))).get())?.value || '';
 
-  await db.update(Contact).set({
-    name,
-    email,
-    phone,
-    slug: newSlug
-  }).where(eq(Contact.id, contactId));
+        const fetchedAddresses = await db.select().from(Addresses).where(and(eq(Addresses.contactId, contactIdNum), eq(Addresses.name, 'primary'))).get();
+        if (fetchedAddresses && fetchedAddresses.value) {
+           try { primaryAddress = JSON.parse(fetchedAddresses.value); } catch(e){ console.error("Bad address JSON", e); pageError = "Failed to parse address data.";}
+        }
 
-  return Astro.redirect('/');
+        const fetchedJob = await db.select().from(Jobs).where(and(eq(Jobs.contactId, contactIdNum), eq(Jobs.name, 'primary'))).get();
+        if (fetchedJob) { primaryJob = fetchedJob; }
+
+        githubUsernameValue = (await db.select().from(GithubProfiles).where(and(eq(GithubProfiles.contactId, contactIdNum), eq(GithubProfiles.name, 'primary'))).get())?.username || '';
+        stravaUsernameValue = (await db.select().from(StravaAccounts).where(and(eq(StravaAccounts.contactId, contactIdNum), eq(StravaAccounts.name, 'primary'))).get())?.username || '';
+
+        const fetchedGameAccounts = await db.select().from(GameAccounts).where(eq(GameAccounts.contactId, contactIdNum)).all();
+        fetchedGameAccounts.forEach(acc => {
+            if (gameAccountsValues.hasOwnProperty(acc.platform)) {
+                gameAccountsValues[acc.platform] = acc.username;
+            }
+        });
+
+        const fetchedNote = await db.select().from(Notes).where(eq(Notes.contactId, contactIdNum)).orderBy(Notes.createdAt).get(); // simplified to first note
+        if (fetchedNote) { primaryNote = fetchedNote; }
+
+    } else {
+         pageError = "Contact not found.";
+    }
 }
 
-const contact = await db.select().from(Contact).where(eq(Contact.id, contactId)).get();
+if (Astro.request.method === 'POST' && contact && !isNaN(contactIdNum)) {
+  try {
+    const data = await Astro.request.formData();
+    const now = new Date();
+    let newSlug = contact.slug;
 
-// Fallback if contact is not found for GET request
-if (!contact) {
-  return new Response("Contact not found", { status: 404 });
+    const primaryNameValue = data.get('primaryName')?.toString().trim() || '';
+    if (!primaryNameValue) throw new Error("Primary name is required.");
+
+    if (primaryNameValue !== currentPrimaryName) {
+        newSlug = slugifyName(primaryNameValue);
+        await db.update(Contact).set({ slug: newSlug, updatedAt: now }).where(eq(Contact.id, contactIdNum));
+    } else {
+        await db.update(Contact).set({ updatedAt: now }).where(eq(Contact.id, contactIdNum));
+    }
+
+    async function upsertItem(table, uniqueCriteria, valuesToInsertOrUpdate, isProfile = false) {
+        const criteria = and(eq(table.contactId, contactIdNum), ...uniqueCriteria);
+        const existing = await db.select().from(table).where(criteria).get();
+
+        let hasValue = false;
+        // Determine if there's a meaningful value to save or update
+        if (isProfile) {
+            hasValue = valuesToInsertOrUpdate.username && valuesToInsertOrUpdate.username.trim() !== '';
+        } else if (valuesToInsertOrUpdate.hasOwnProperty('value')) {
+             hasValue = valuesToInsertOrUpdate.value && valuesToInsertOrUpdate.value.trim() !== '';
+        } else if (valuesToInsertOrUpdate.hasOwnProperty('company')) {
+             hasValue = (valuesToInsertOrUpdate.company && valuesToInsertOrUpdate.company.trim() !== '') ||
+                        (valuesToInsertOrUpdate.role && valuesToInsertOrUpdate.role.trim() !== '');
+        } else if (valuesToInsertOrUpdate.hasOwnProperty('name') && valuesToInsertOrUpdate.hasOwnProperty('value')) {
+             hasValue = (valuesToInsertOrUpdate.name && valuesToInsertOrUpdate.name.trim() !== '') ||
+                        (valuesToInsertOrUpdate.value && valuesToInsertOrUpdate.value.trim() !== '');
+        }
+
+
+        if (existing) {
+            if (hasValue) {
+                await db.update(table).set({...valuesToInsertOrUpdate, updatedAt: now}).where(criteria);
+            } else {
+                await db.delete(table).where(criteria);
+            }
+        } else if (hasValue) {
+            const baseInsertData = { contactId: contactIdNum, createdAt: now, updatedAt: now };
+            // Add fields from uniqueCriteria to the baseInsertData
+            uniqueCriteria.forEach(crit => {
+                 if (crit.column && crit.column.name && crit.hasOwnProperty('value')) {
+                    baseInsertData[crit.column.name] = crit.value;
+                }
+            });
+            await db.insert(table).values({...baseInsertData, ...valuesToInsertOrUpdate});
+        }
+    }
+
+    await upsertItem(Names, [eq(Names.name, 'primary')], { value: primaryNameValue });
+    await upsertItem(Names, [eq(Names.name, 'givenName')], { value: data.get('givenName')?.toString().trim() });
+    await upsertItem(Names, [eq(Names.name, 'familyName')], { value: data.get('familyName')?.toString().trim() });
+
+    await upsertItem(EmailAddresses, [eq(EmailAddresses.name, 'primary')], { value: data.get('primaryEmail')?.toString().trim() });
+    await upsertItem(PhoneNumbers, [eq(PhoneNumbers.name, 'primary')], { value: data.get('primaryPhone')?.toString().trim() });
+
+    const adStreet = data.get('addressStreet')?.toString().trim();
+    const adCity = data.get('addressCity')?.toString().trim();
+    const adZip = data.get('addressZip')?.toString().trim();
+    const adCountry = data.get('addressCountry')?.toString().trim();
+    if (adStreet || adCity || adZip || adCountry) {
+        const addressValue = JSON.stringify({ street: adStreet, city: adCity, zip: adZip, country: adCountry });
+        await upsertItem(Addresses, [eq(Addresses.name, 'primary')], { value: addressValue });
+    } else {
+        await db.delete(Addresses).where(and(eq(Addresses.contactId, contactIdNum), eq(Addresses.name, 'primary')));
+    }
+
+
+    const jobCompany = data.get('jobCompany')?.toString().trim();
+    const jobRole = data.get('jobRole')?.toString().trim();
+    const jobLinkedIn = data.get('jobLinkedIn')?.toString().trim();
+    if (jobCompany || jobRole || jobLinkedIn) {
+      await upsertItem(Jobs, [eq(Jobs.name, 'primary')], { company: jobCompany, role: jobRole, linkedInUsername: jobLinkedIn });
+    } else {
+        await db.delete(Jobs).where(and(eq(Jobs.contactId, contactIdNum), eq(Jobs.name, 'primary')));
+    }
+
+    await upsertItem(GithubProfiles, [eq(GithubProfiles.name, 'primary')], { username: data.get('githubUsername')?.toString().trim() }, true);
+    await upsertItem(StravaAccounts, [eq(StravaAccounts.name, 'primary')], { username: data.get('stravaUsername')?.toString().trim() }, true);
+
+    await upsertItem(GameAccounts, [eq(GameAccounts.platform, 'steam')], { username: data.get('gameSteam')?.toString().trim(), platform: 'steam' }, true);
+    await upsertItem(GameAccounts, [eq(GameAccounts.platform, 'psn')], { username: data.get('gamePsn')?.toString().trim(), platform: 'psn' }, true);
+    await upsertItem(GameAccounts, [eq(GameAccounts.platform, 'xbox')], { username: data.get('gameXbox')?.toString().trim(), platform: 'xbox' }, true);
+    await upsertItem(GameAccounts, [eq(GameAccounts.platform, 'nintendo')], { username: data.get('gameNintendo')?.toString().trim(), platform: 'nintendo' }, true);
+
+    const noteTitle = data.get('noteTitle')?.toString().trim();
+    const noteContent = data.get('noteContent')?.toString().trim();
+    const existingNoteForEdit = await db.select().from(Notes).where(eq(Notes.contactId, contactIdNum)).orderBy(Notes.createdAt).get();
+
+    if (noteTitle || noteContent) {
+        if(existingNoteForEdit) {
+            await db.update(Notes).set({ name: noteTitle, value: noteContent, updatedAt: now}).where(eq(Notes.id, existingNoteForEdit.id));
+        } else {
+            await db.insert(Notes).values({ contactId: contactIdNum, name: noteTitle, value: noteContent, createdAt: now, updatedAt: now });
+        }
+    } else if (existingNoteForEdit) {
+        await db.delete(Notes).where(eq(Notes.id, existingNoteForEdit.id));
+    }
+
+    return Astro.redirect(`/edit-contact/${id}?success=Contact updated successfully&cb=${Date.now()}`);
+  } catch (e) {
+    console.error("Error updating contact:", e);
+    return Astro.redirect(`/edit-contact/${id}?error=` + encodeURIComponent(e.message) + `&cb=${Date.now()}`);
+  }
+}
+
+export async function getStaticPaths() {
+  const contacts = await db.select({ id: Contact.id }).from(Contact).all();
+  return contacts.map(c => ({
+    params: { id: c.id.toString() },
+  }));
 }
 ---
-<form method="POST">
-  <label for="name">Name:</label>
-  <input type="text" id="name" name="name" value={contact.name} required />
+<Layout title={`Edit Contact: ${currentPrimaryName || 'Loading...'}`}>
+  <h1>Edit Contact: {currentPrimaryName || contact?.slug || "Unknown"}</h1>
 
-  <label for="email">Email:</label>
-  <input type="email" id="email" name="email" value={contact.email} required />
+  {pageError && <p style="padding: 1em; margin-bottom: 1em; border-radius: 4px; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;">Error: {pageError}</p>}
+  {pageSuccess && <p style="padding: 1em; margin-bottom: 1em; border-radius: 4px; background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;">{pageSuccess}</p>}
 
-  <label for="phone">Phone:</label>
-  <input type="tel" id="phone" name="phone" value={contact.phone || ''} />
+  {contact && !pageError ? (
+    <form method="POST">
+      <fieldset>
+        <legend>Contact Identity</legend>
+        <div><label for="primaryName">Primary Full Name*:</label><input type="text" id="primaryName" name="primaryName" required value={currentPrimaryName} /></div>
+        <div><label for="givenName">Given Name:</label><input type="text" id="givenName" name="givenName" value={givenName} /></div>
+        <div><label for="familyName">Family Name:</label><input type="text" id="familyName" name="familyName" value={familyName} /></div>
+      </fieldset>
 
-  <button type="submit">Update Contact</button>
-</form>
+      <fieldset>
+        <legend>Primary Email</legend>
+        <div><label for="primaryEmail">Email Address:</label><input type="email" id="primaryEmail" name="primaryEmail" value={primaryEmail} /></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Primary Phone</legend>
+        <div><label for="primaryPhone">Phone Number:</label><input type="tel" id="primaryPhone" name="primaryPhone" value={primaryPhone} /></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Primary Address</legend>
+        <div><label for="addressStreet">Street:</label><input type="text" name="addressStreet" id="addressStreet" value={primaryAddress.street} /></div>
+        <div><label for="addressCity">City:</label><input type="text" name="addressCity" id="addressCity" value={primaryAddress.city} /></div>
+        <div><label for="addressZip">Zip/Postal Code:</label><input type="text" name="addressZip" id="addressZip" value={primaryAddress.zip} /></div>
+        <div><label for="addressCountry">Country:</label><input type="text" name="addressCountry" id="addressCountry" value={primaryAddress.country} /></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Primary Job</legend>
+        <div><label for="jobCompany">Company:</label><input type="text" name="jobCompany" id="jobCompany" value={primaryJob.company} /></div>
+        <div><label for="jobRole">Role:</label><input type="text" name="jobRole" id="jobRole" value={primaryJob.role} /></div>
+        <div><label for="jobLinkedIn">LinkedIn Username:</label><input type="text" name="jobLinkedIn" id="jobLinkedIn" value={primaryJob.linkedInUsername || ''} /></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Online Profiles (Primary)</legend>
+        <div><label for="githubUsername">GitHub Username:</label><input type="text" name="githubUsername" id="githubUsername" value={githubUsernameValue} /></div>
+        <div><label for="stravaUsername">Strava Username:</label><input type="text" name="stravaUsername" id="stravaUsername" value={stravaUsernameValue} /></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Game Accounts</legend>
+        <div><label for="gameSteam">Steam Username:</label><input type="text" name="gameSteam" id="gameSteam" value={gameAccountsValues.steam} /></div>
+        <div><label for="gamePsn">PSN ID:</label><input type="text" name="gamePsn" id="gamePsn" value={gameAccountsValues.psn} /></div>
+        <div><label for="gameXbox">Xbox Gamertag:</label><input type="text" name="gameXbox" id="gameXbox" value={gameAccountsValues.xbox} /></div>
+        <div><label for="gameNintendo">Nintendo Account:</label><input type="text" name="gameNintendo" id="gameNintendo" value={gameAccountsValues.nintendo} /></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Note (Primary/First)</legend>
+        <div><label for="noteTitle">Title:</label><input type="text" name="noteTitle" id="noteTitle" value={primaryNote.name} /></div>
+        <div><label for="noteContent">Content:</label><textarea name="noteContent" id="noteContent" rows="4">{primaryNote.value}</textarea></div>
+      </fieldset>
+
+      <button type="submit">Save Changes</button>
+      <p><a href={`/contacts/${contact.slug}`}>Cancel and View Contact</a></p>
+    </form>
+  ) : (
+    <p>Loading contact data or contact not found.</p>
+  )}
+</Layout>

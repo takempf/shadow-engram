@@ -1,34 +1,190 @@
 ---
-import { db, Contact } from 'astro:db';
-// slugify import removed
+import { db, Contact, Names, EmailAddresses, PhoneNumbers, Addresses, Jobs, GithubProfiles, GameAccounts, StravaAccounts, Notes, eq } from 'astro:db';
 import Layout from '../../layouts/Layout.astro';
 
 export async function getStaticPaths() {
-  const contacts = await db.select().from(Contact).all(); // Use .all() to fetch all records
-
-  return contacts.map(contact => {
-    // Ensure contact.slug is not null or undefined before using it.
-    // If a contact somehow misses a slug, this could cause an error or an invalid path.
-    // For this task, we assume slugs are always present if the previous steps were done correctly.
-    if (!contact.slug) {
-      // Optionally, skip this contact or throw an error if a slug is missing
-      console.warn(`Contact with ID ${contact.id} and name "${contact.name}" is missing a slug. Skipping path generation.`);
-      return null; // This will be filtered out later
+  const contacts = await db.select({ slug: Contact.slug }).from(Contact).all();
+  return contacts.map(c => { // Renamed 'contact' to 'c' to avoid conflict with table name
+    if (!c.slug) {
+      console.warn(`A contact is missing a slug. Skipping path generation.`);
+      return null;
     }
     return {
-      params: { slug: contact.slug }, // Use the stored slug
-      props: { contact },
+      params: { slug: c.slug },
+      props: { slug: c.slug }, // Pass the slug as a prop
     };
-  }).filter(path => path !== null); // Filter out any null entries due to missing slugs
+  }).filter(path => path !== null);
 }
 
-const { contact } = Astro.props;
+const { slug } = Astro.props; // The slug is passed from getStaticPaths
+const contact = await db.select().from(Contact).where(eq(Contact.slug, slug)).get();
+
+let displayName = contact ? contact.slug : "Contact not found"; // Default display name
+let names = [];
+let emailAddresses = [];
+let phoneNumbers = [];
+let addresses = [];
+let jobs = [];
+let githubProfiles = [];
+let gameAccounts = [];
+let stravaAccounts = [];
+let notes = [];
+
+if (contact) {
+  names = await db.select().from(Names).where(eq(Names.contactId, contact.id)).all();
+  emailAddresses = await db.select().from(EmailAddresses).where(eq(EmailAddresses.contactId, contact.id)).all();
+  phoneNumbers = await db.select().from(PhoneNumbers).where(eq(PhoneNumbers.contactId, contact.id)).all();
+  addresses = await db.select().from(Addresses).where(eq(Addresses.contactId, contact.id)).all();
+  jobs = await db.select().from(Jobs).where(eq(Jobs.contactId, contact.id)).all();
+  githubProfiles = await db.select().from(GithubProfiles).where(eq(GithubProfiles.contactId, contact.id)).all();
+  gameAccounts = await db.select().from(GameAccounts).where(eq(GameAccounts.contactId, contact.id)).all();
+  stravaAccounts = await db.select().from(StravaAccounts).where(eq(StravaAccounts.contactId, contact.id)).all();
+  notes = await db.select().from(Notes).where(eq(Notes.contactId, contact.id)).all();
+
+  const primaryNameObj = names.find(n => n.name === 'primary');
+  if (primaryNameObj) {
+    displayName = primaryNameObj.value;
+  } else if (names.length > 0) {
+    // Fallback to the first name entry if no primary is designated
+    displayName = names[0].value;
+  }
+}
 ---
-<Layout title={contact.name}>
-  <h1>{contact.name}</h1>
-  <p>Email: {contact.email}</p>
-  <p>Phone: {contact.phone}</p>
-  {contact.address && <p>Address: {contact.address}</p>}
-  {contact.notes && <p>Notes: {contact.notes}</p>}
-  <a href="/">Back to Contacts</a>
+<Layout title={displayName}>
+  {contact ? (
+    <>
+      <h1>{displayName}</h1>
+      <p><em>Contact Slug: {contact.slug}</em></p>
+      <p><em>Contact created: {new Date(contact.createdAt).toLocaleString()}, Last updated: {new Date(contact.updatedAt).toLocaleString()}</em></p>
+
+      {names.length > 0 && (
+        <section>
+          <h2>Names</h2>
+          <ul>
+            {names.map(item => (
+              <li><strong>{item.name}:</strong> {item.value} <em>(Added: {new Date(item.createdAt).toLocaleString()}, Updated: {new Date(item.updatedAt).toLocaleString()})</em></li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {emailAddresses.length > 0 && (
+        <section>
+          <h2>Email Addresses</h2>
+          <ul>
+            {emailAddresses.map(item => (
+              <li><strong>{item.name}:</strong> {item.value} <em>(Added: {new Date(item.createdAt).toLocaleString()}, Updated: {new Date(item.updatedAt).toLocaleString()})</em></li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {phoneNumbers.length > 0 && (
+        <section>
+          <h2>Phone Numbers</h2>
+          <ul>
+            {phoneNumbers.map(item => (
+              <li><strong>{item.name}:</strong> {item.value} <em>(Added: {new Date(item.createdAt).toLocaleString()}, Updated: {new Date(item.updatedAt).toLocaleString()})</em></li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {addresses.length > 0 && (
+        <section>
+          <h2>Addresses</h2>
+          <ul>
+            {addresses.map(item => {
+              let addressData;
+              try {
+                addressData = JSON.parse(item.value);
+              } catch (e) {
+                console.error("Failed to parse address JSON:", e);
+                return <li><strong>{item.name}:</strong> Invalid address data <em>(Added: {new Date(item.createdAt).toLocaleString()}, Updated: {new Date(item.updatedAt).toLocaleString()})</em></li>;
+              }
+              return (
+                <li>
+                  <strong>{item.name}:</strong>
+                  {addressData ? `${addressData.street}, ${addressData.city}, ${addressData.zip}, ${addressData.country}` : 'N/A'}
+                  <em>(Added: {new Date(item.createdAt).toLocaleString()}, Updated: {new Date(item.updatedAt).toLocaleString()})</em>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {jobs.length > 0 && (
+        <section>
+          <h2>Jobs</h2>
+          <ul>
+            {jobs.map(item => (
+              <li>
+                <strong>{item.name}:</strong> {item.company} - {item.role}
+                {item.linkedInUsername && ` (LinkedIn: ${item.linkedInUsername})`}
+                <em>(Added: {new Date(item.createdAt).toLocaleString()}, Updated: {new Date(item.updatedAt).toLocaleString()})</em>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {githubProfiles.length > 0 && (
+        <section>
+          <h2>GitHub Profiles</h2>
+          <ul>
+            {githubProfiles.map(item => (
+              <li><strong>{item.name}:</strong> {item.username} <em>(Added: {new Date(item.createdAt).toLocaleString()}, Updated: {new Date(item.updatedAt).toLocaleString()})</em></li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {gameAccounts.length > 0 && (
+        <section>
+          <h2>Game Accounts</h2>
+          <ul>
+            {gameAccounts.map(item => (
+              <li><strong>{item.platform}:</strong> {item.username} <em>(Added: {new Date(item.createdAt).toLocaleString()}, Updated: {new Date(item.updatedAt).toLocaleString()})</em></li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {stravaAccounts.length > 0 && (
+        <section>
+          <h2>Strava Accounts</h2>
+          <ul>
+            {stravaAccounts.map(item => (
+              <li><strong>{item.name}:</strong> {item.username} <em>(Added: {new Date(item.createdAt).toLocaleString()}, Updated: {new Date(item.updatedAt).toLocaleString()})</em></li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {notes.length > 0 && (
+        <section>
+          <h2>Notes</h2>
+          <ul>
+            {notes.map(item => (
+              <li>
+                <strong>{item.name}:</strong>
+                <pre>{item.value}</pre>
+                <em>(Added: {new Date(item.createdAt).toLocaleString()}, Updated: {new Date(item.updatedAt).toLocaleString()})</em>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <p><a href="/edit-contact">Edit this contact (placeholder)</a></p>
+      <p><a href="/">Back to Contacts</a></p>
+    </>
+  ) : (
+    <>
+      <h1>Contact Not Found</h1>
+      <p>The contact with slug '{slug}' could not be found.</p>
+      <p><a href="/">Back to Contacts</a></p>
+    </>
+  )}
 </Layout>
