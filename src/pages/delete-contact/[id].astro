@@ -1,10 +1,85 @@
 ---
-import { db, Contact, eq } from 'astro:db';
+import { db, Contact, Names, EmailAddresses, PhoneNumbers, Addresses, Jobs, GithubProfiles, GameAccounts, StravaAccounts, Notes, eq, and } from 'astro:db';
+import Layout from '../../layouts/Layout.astro';
+
+export async function getStaticPaths() {
+  const contacts = await db.select({ id: Contact.id }).from(Contact).all();
+  return contacts.map(c => ({
+    params: { id: c.id.toString() },
+  }));
+}
 
 const { id } = Astro.params;
+const contactIdNum = parseInt(id);
+let contactDisplayIdentifier = id;
+let contactSlugForBackLink = '';
+let pageError = null;
 
-if (Astro.request.method === 'POST') {
-  await db.delete(Contact).where(eq(Contact.id, Number(id)));
-  return Astro.redirect('/');
+if (isNaN(contactIdNum)) {
+  pageError = "Invalid contact ID provided.";
+} else {
+    const contactInfo = await db.select({ slug: Contact.slug }).from(Contact).where(eq(Contact.id, contactIdNum)).get();
+    if (contactInfo) {
+        contactSlugForBackLink = contactInfo.slug;
+        const primaryNameEntry = await db.select({ value: Names.value })
+            .from(Names)
+            .where(and(eq(Names.contactId, contactIdNum), eq(Names.name, 'primary')))
+            .get();
+        contactDisplayIdentifier = primaryNameEntry ? primaryNameEntry.value : contactInfo.slug;
+    } else {
+        pageError = "Contact not found. It may have already been deleted.";
+    }
+}
+
+if (Astro.request.method === 'POST' && !isNaN(contactIdNum) && !pageError) {
+  try {
+    await db.delete(Notes).where(eq(Notes.contactId, contactIdNum));
+    await db.delete(StravaAccounts).where(eq(StravaAccounts.contactId, contactIdNum));
+    await db.delete(GameAccounts).where(eq(GameAccounts.contactId, contactIdNum));
+    await db.delete(GithubProfiles).where(eq(GithubProfiles.contactId, contactIdNum));
+    await db.delete(Jobs).where(eq(Jobs.contactId, contactIdNum));
+    await db.delete(Addresses).where(eq(Addresses.contactId, contactIdNum));
+    await db.delete(PhoneNumbers).where(eq(PhoneNumbers.contactId, contactIdNum));
+    await db.delete(EmailAddresses).where(eq(EmailAddresses.contactId, contactIdNum));
+    await db.delete(Names).where(eq(Names.contactId, contactIdNum));
+    await db.delete(Contact).where(eq(Contact.id, contactIdNum));
+
+    return Astro.redirect(`/?success=Contact '${contactDisplayIdentifier}' deleted successfully&cb=${Date.now()}`);
+  } catch (e) {
+    console.error("Error deleting contact:", e);
+    pageError = "Failed to delete contact. " + e.message;
+  }
 }
 ---
+<Layout title={`Delete Contact: ${contactDisplayIdentifier}`}>
+  <header>
+    <h1>Delete Contact: {contactDisplayIdentifier}</h1>
+  </header>
+
+  {pageError && (
+    <div class="message error"> {/* Keep class names for potential global styles */}
+      <p>{pageError}</p>
+      <p><a href="/">Return to Contacts List</a></p>
+    </div>
+  )}
+
+  {!pageError && !isNaN(contactIdNum) && (
+    <div class="confirmation-box">
+      <p>Are you sure you want to delete the contact "<strong>{contactDisplayIdentifier}</strong>"?</p>
+      <p><strong>This action cannot be undone.</strong> All associated information (names, emails, addresses, etc.) will be permanently removed.</p>
+
+      <form method="POST" class="delete-form">
+        <button type="submit" class="button-danger">Yes, Delete This Contact</button>
+        {contactSlugForBackLink ? (
+          <a href={`/contacts/${contactSlugForBackLink}`} class="button-secondary">Cancel</a>
+        ) : (
+          <a href="/" class="button-secondary">Cancel and Go to List</a>
+        )}
+      </form>
+    </div>
+  )}
+
+  {!pageError && isNaN(contactIdNum) && ( /* This case is covered by the top error, but good for clarity */
+    <p>Invalid contact ID. Cannot display confirmation.</p>
+  )}
+</Layout>

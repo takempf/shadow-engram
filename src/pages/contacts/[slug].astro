@@ -177,7 +177,12 @@ if (contact) {
         </section>
       )}
 
-      <p><a href="/edit-contact">Edit this contact (placeholder)</a></p>
+      {contact && (
+        <div class="contact-actions">
+          <a href={`/edit-contact/${contact.id}`} class="button-primary">Edit this contact</a>
+          <a href={`/delete-contact/${contact.id}`} class="button-danger">Delete this contact</a>
+        </div>
+      )}
       <p><a href="/">Back to Contacts</a></p>
     </>
   ) : (
