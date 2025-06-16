@@ -1,22 +1,53 @@
 ---
-// src/pages/index.astro
-import { db, Contact } from 'astro:db'; // slugify import removed
+import Layout from '../layouts/Layout.astro';
+import { db, Contact, Names, eq, and } from 'astro:db';
 
-const contacts = await db.select().from(Contact).all(); // Assuming .all() to fetch all contacts
+// Fetch all contacts
+const contacts = await db.select().from(Contact).all();
+
+// Create a list of contacts with their primary names
+const contactsWithPrimaryNames = await Promise.all(
+  contacts.map(async (contact) => {
+    const primaryNameEntry = await db.select({ value: Names.value })
+                                   .from(Names)
+                                   .where(and(eq(Names.contactId, contact.id), eq(Names.name, 'primary')))
+                                   .get();
+
+    return {
+      ...contact, // Spread the original contact fields (id, slug, createdAt, updatedAt)
+      displayName: primaryNameEntry ? primaryNameEntry.value : contact.slug, // Fallback to slug
+    };
+  })
+);
 ---
-<h1>My Contacts</h1>
-<ul>
-  {contacts.map(contact => ( // Simplified map, no need for explicit return block if slug generation is removed
-    <li>
-      {/* Ensure contact.slug is available. If not, link might be broken. */}
-      <strong><a href={`/contacts/${contact.slug}`}>{contact.name}</a></strong><br/>
-      Email: {contact.email}<br/>
-      {contact.phone && `Phone: ${contact.phone}`}
-      <a href={`/edit-contact/${contact.id}`}>Edit</a>
-      <form method="POST" action={`/delete-contact/${contact.id}`}>
-        <button type="submit">Delete</button>
-      </form>
-    </li>
-  ))}
-</ul>
-<a href="/add-contact">Add New Contact</a>
+<Layout title="Contacts List">
+  <header>
+    <h1>Contacts</h1>
+    <a href="/add-contact" class="button-primary">Add New Contact</a>
+  </header>
+
+  {contactsWithPrimaryNames.length === 0 ? (
+    <p>No contacts found. Add one!</p>
+  ) : (
+    <ul class="contacts-list">
+      {contactsWithPrimaryNames.map(contact => (
+        <li>
+          <a href={`/contacts/${contact.slug}`} class="contact-link">
+            <span class="display-name">{contact.displayName}</span>
+            <span class="contact-meta">
+              (Slug: {contact.slug}, Created: {new Date(contact.createdAt).toLocaleDateString()})
+            </span>
+          </a>
+          <div class="contact-actions">
+            <a href={`/edit-contact/${contact.id}`} class="button-secondary button-small">Edit</a>
+            {/* Example of a delete form, if needed later
+            <form method="POST" action={`/delete-contact/${contact.id}`} style="display: inline;">
+              <button type="submit" class="button-danger button-small" onclick="return confirm('Are you sure you want to delete this contact?');">Delete</button>
+            </form>
+            */}
+          </div>
+        </li>
+      ))}
+    </ul>
+  )}
+</Layout>

@@ -1,32 +1,309 @@
 ---
-import { db, Contact, eq } from 'astro:db';
-// slugify import is no longer needed here directly, it's in slugUtils
-import { generateUniqueSlug } from '../utils/slugUtils'; // Corrected path
+import Layout from '../layouts/Layout.astro';
+import { db, Contact, Names, EmailAddresses, PhoneNumbers, Addresses, Jobs, GithubProfiles, GameAccounts, StravaAccounts, Notes } from 'astro:db';
+import { slugifyName } from '../utils/slugUtils';
 
-// Removed local generateUniqueSlug function
+let formError: string | null = null;
 
 if (Astro.request.method === 'POST') {
-  const formData = await Astro.request.formData();
-  const name = formData.get('name') as string;
-  const email = formData.get('email') as string;
-  const phone = formData.get('phone') as string;
+  try {
+    const data = await Astro.request.formData();
+    const now = new Date();
 
-  // Call the imported function. For add-contact, excludeId is not needed (or can be null).
-  const slug = await generateUniqueSlug(name);
+    // --- Primary Name (Required for Contact and Slug) ---
+    const primaryNameValue = data.get('primaryName');
+    if (!primaryNameValue || typeof primaryNameValue !== 'string' || primaryNameValue.trim() === '') {
+      throw new Error("Primary name is required and cannot be empty.");
+    }
+    const contactSlug = slugifyName(primaryNameValue);
 
-  await db.insert(Contact).values({ name, email, phone, slug });
-  return Astro.redirect('/');
+    // --- Create Contact ---
+    const insertResults = await db.insert(Contact).values({
+      slug: contactSlug,
+      createdAt: now,
+      updatedAt: now,
+    }).returning();
+
+    if (!insertResults || insertResults.length === 0) {
+        throw new Error("Failed to create contact entry.");
+    }
+    const contactResult = insertResults[0];
+    const contactId = contactResult.id;
+
+    // --- Names ---
+    // Primary Name
+    await db.insert(Names).values({
+      contactId: contactId,
+      name: 'primary',
+      value: primaryNameValue,
+      createdAt: now,
+      updatedAt: now,
+    });
+    // Given Name
+    const givenNameValue = data.get('givenName');
+    if (givenNameValue && typeof givenNameValue === 'string' && givenNameValue.trim() !== '') {
+      await db.insert(Names).values({ contactId: contactId, name: 'givenName', value: givenNameValue, createdAt: now, updatedAt: now });
+    }
+    // Family Name
+    const familyNameValue = data.get('familyName');
+    if (familyNameValue && typeof familyNameValue === 'string' && familyNameValue.trim() !== '') {
+      await db.insert(Names).values({ contactId: contactId, name: 'familyName', value: familyNameValue, createdAt: now, updatedAt: now });
+    }
+    // Other names
+    const otherNameLabel = data.get('otherNameLabel');
+    const otherNameValue = data.get('otherNameValue');
+    if (otherNameLabel && typeof otherNameLabel === 'string' && otherNameLabel.trim() !== '' &&
+        otherNameValue && typeof otherNameValue === 'string' && otherNameValue.trim() !== '') {
+        await db.insert(Names).values({ contactId: contactId, name: otherNameLabel, value: otherNameValue, createdAt: now, updatedAt: now });
+    }
+
+    // --- Email Addresses ---
+    const primaryEmailValue = data.get('primaryEmail');
+    if (primaryEmailValue && typeof primaryEmailValue === 'string' && primaryEmailValue.trim() !== '') {
+      await db.insert(EmailAddresses).values({ contactId: contactId, name: 'primary', value: primaryEmailValue, createdAt: now, updatedAt: now });
+    }
+    const otherEmailLabel = data.get('otherEmailLabel');
+    const otherEmailValue = data.get('otherEmailValue');
+    if (otherEmailLabel && typeof otherEmailLabel === 'string' && otherEmailLabel.trim() !== '' &&
+        otherEmailValue && typeof otherEmailValue === 'string' && otherEmailValue.trim() !== '') {
+        await db.insert(EmailAddresses).values({ contactId: contactId, name: otherEmailLabel, value: otherEmailValue, createdAt: now, updatedAt: now });
+    }
+
+    // --- Phone Numbers ---
+    const primaryPhoneValue = data.get('primaryPhone');
+    if (primaryPhoneValue && typeof primaryPhoneValue === 'string' && primaryPhoneValue.trim() !== '') {
+      await db.insert(PhoneNumbers).values({ contactId: contactId, name: 'primary', value: primaryPhoneValue, createdAt: now, updatedAt: now });
+    }
+    const otherPhoneLabel = data.get('otherPhoneLabel');
+    const otherPhoneValue = data.get('otherPhoneValue');
+    if (otherPhoneLabel && typeof otherPhoneLabel === 'string' && otherPhoneLabel.trim() !== '' &&
+        otherPhoneValue && typeof otherPhoneValue === 'string' && otherPhoneValue.trim() !== '') {
+        await db.insert(PhoneNumbers).values({ contactId: contactId, name: otherPhoneLabel, value: otherPhoneValue, createdAt: now, updatedAt: now });
+    }
+
+    // --- Addresses ---
+    const addressStreet = data.get('addressStreet');
+    const addressCity = data.get('addressCity');
+    const addressZip = data.get('addressZip');
+    const addressCountry = data.get('addressCountry');
+    if (addressStreet && typeof addressStreet === 'string' && addressStreet.trim() !== '' &&
+        addressCity && typeof addressCity === 'string' && addressCity.trim() !== '' &&
+        addressZip && typeof addressZip === 'string' && addressZip.trim() !== '' &&
+        addressCountry && typeof addressCountry === 'string' && addressCountry.trim() !== '') {
+        const addressValue = JSON.stringify({
+            street: addressStreet.toString(),
+            city: addressCity.toString(),
+            zip: addressZip.toString(),
+            country: addressCountry.toString()
+        });
+        await db.insert(Addresses).values({
+            contactId: contactId, name: 'primary', value: addressValue, createdAt: now, updatedAt: now
+        });
+    }
+
+    // --- Jobs ---
+    const jobCompany = data.get('jobCompany');
+    const jobRole = data.get('jobRole');
+    const jobLinkedIn = data.get('jobLinkedIn');
+    if (jobCompany && typeof jobCompany === 'string' && jobCompany.trim() !== '' &&
+        jobRole && typeof jobRole === 'string' && jobRole.trim() !== '') {
+        await db.insert(Jobs).values({
+            contactId: contactId, name: 'primary',
+            company: jobCompany.toString(), role: jobRole.toString(),
+            linkedInUsername: (jobLinkedIn && typeof jobLinkedIn === 'string' && jobLinkedIn.trim() !== '') ? jobLinkedIn.toString() : null,
+            createdAt: now, updatedAt: now
+        });
+    }
+
+    // --- GitHub ---
+    const githubUsername = data.get('githubUsername');
+    if (githubUsername && typeof githubUsername === 'string' && githubUsername.trim() !== '') {
+        await db.insert(GithubProfiles).values({
+            contactId: contactId, name: 'primary', username: githubUsername, createdAt: now, updatedAt: now
+        });
+    }
+
+    // --- Game Accounts ---
+    const gameSteam = data.get('gameSteam');
+    if (gameSteam && typeof gameSteam === 'string' && gameSteam.trim() !== '') {
+        await db.insert(GameAccounts).values({ contactId: contactId, platform: 'steam', username: gameSteam, createdAt: now, updatedAt: now });
+    }
+    const gamePsn = data.get('gamePsn');
+    if (gamePsn && typeof gamePsn === 'string' && gamePsn.trim() !== '') {
+        await db.insert(GameAccounts).values({ contactId: contactId, platform: 'psn', username: gamePsn, createdAt: now, updatedAt: now });
+    }
+    const gameXbox = data.get('gameXbox');
+    if (gameXbox && typeof gameXbox === 'string' && gameXbox.trim() !== '') {
+        await db.insert(GameAccounts).values({ contactId: contactId, platform: 'xbox', username: gameXbox, createdAt: now, updatedAt: now });
+    }
+    const gameNintendo = data.get('gameNintendo');
+    if (gameNintendo && typeof gameNintendo === 'string' && gameNintendo.trim() !== '') {
+        await db.insert(GameAccounts).values({ contactId: contactId, platform: 'nintendo', username: gameNintendo, createdAt: now, updatedAt: now });
+    }
+
+
+    // --- Strava ---
+    const stravaUsername = data.get('stravaUsername');
+    if (stravaUsername && typeof stravaUsername === 'string' && stravaUsername.trim() !== '') {
+        await db.insert(StravaAccounts).values({
+            contactId: contactId, name: 'primary', username: stravaUsername, createdAt: now, updatedAt: now
+        });
+    }
+
+    // --- Notes ---
+    const noteTitle = data.get('noteTitle');
+    const noteContent = data.get('noteContent');
+    if (noteTitle && typeof noteTitle === 'string' && noteTitle.trim() !== '' &&
+        noteContent && typeof noteContent === 'string' && noteContent.trim() !== '') {
+        await db.insert(Notes).values({
+            contactId: contactId, name: noteTitle, value: noteContent, createdAt: now, updatedAt: now
+        });
+    }
+
+    return Astro.redirect(`/contacts/${contactSlug}`);
+  } catch (error) {
+    console.error("Error adding contact:", error);
+    formError = error.message || "An unknown error occurred.";
+    // Stay on the page to show the error
+  }
 }
 ---
-<form method="POST" enctype="application/x-www-form-urlencoded">
-  <label for="name">Name:</label>
-  <input type="text" id="name" name="name" required />
+<Layout title="Add New Contact">
+  <h1>Add New Contact</h1>
+  {formError && <p style="color: red;"><strong>Error:</strong> {formError}</p>}
+  <form method="POST">
+    <fieldset>
+      <legend>Contact Identity</legend>
+      <div>
+        <label for="primaryName">Primary Full Name*:</label>
+        <input type="text" id="primaryName" name="primaryName" required />
+        <small>Used to generate the contact's unique URL (slug).</small>
+      </div>
+      <div>
+        <label for="givenName">Given Name:</label>
+        <input type="text" id="givenName" name="givenName" />
+      </div>
+      <div>
+        <label for="familyName">Family Name:</label>
+        <input type="text" id="familyName" name="familyName" />
+      </div>
+      <div>
+        <label for="otherNameLabel">Other Name Type (e.g., Nickname):</label>
+        <input type="text" id="otherNameLabel" name="otherNameLabel" placeholder="e.g., Nickname" />
+        <label for="otherNameValue">Value:</label>
+        <input type="text" id="otherNameValue" name="otherNameValue" />
+      </div>
+    </fieldset>
 
-  <label for="email">Email:</label>
-  <input type="email" id="email" name="email" required />
+    <fieldset>
+      <legend>Email Addresses</legend>
+      <div>
+        <label for="primaryEmail">Primary Email:</label>
+        <input type="email" id="primaryEmail" name="primaryEmail" />
+      </div>
+      <div>
+        <label for="otherEmailLabel">Other Email Type (e.g., Work):</label>
+        <input type="text" id="otherEmailLabel" name="otherEmailLabel" placeholder="e.g., Work" />
+        <label for="otherEmailValue">Value:</label>
+        <input type="email" id="otherEmailValue" name="otherEmailValue" />
+      </div>
+    </fieldset>
 
-  <label for="phone">Phone:</label>
-  <input type="tel" id="phone" name="phone" />
+    <fieldset>
+      <legend>Phone Numbers</legend>
+      <div>
+        <label for="primaryPhone">Primary Phone:</label>
+        <input type="tel" id="primaryPhone" name="primaryPhone" />
+      </div>
+      <div>
+        <label for="otherPhoneLabel">Other Phone Type (e.g., Mobile):</label>
+        <input type="text" id="otherPhoneLabel" name="otherPhoneLabel" placeholder="e.g., Mobile" />
+        <label for="otherPhoneValue">Value:</label>
+        <input type="tel" id="otherPhoneValue" name="otherPhoneValue" />
+      </div>
+    </fieldset>
 
-  <button type="submit">Add Contact</button>
-</form>
+    <fieldset>
+      <legend>Primary Address</legend>
+      <div>
+        <label for="addressStreet">Street:</label>
+        <input type="text" id="addressStreet" name="addressStreet" />
+      </div>
+      <div>
+        <label for="addressCity">City:</label>
+        <input type="text" id="addressCity" name="addressCity" />
+      </div>
+      <div>
+        <label for="addressZip">Zip/Postal Code:</label>
+        <input type="text" id="addressZip" name="addressZip" />
+      </div>
+      <div>
+        <label for="addressCountry">Country:</label>
+        <input type="text" id="addressCountry" name="addressCountry" />
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Primary Job</legend>
+      <div>
+        <label for="jobCompany">Company:</label>
+        <input type="text" id="jobCompany" name="jobCompany" />
+      </div>
+      <div>
+        <label for="jobRole">Role:</label>
+        <input type="text" id="jobRole" name="jobRole" />
+      </div>
+      <div>
+        <label for="jobLinkedIn">LinkedIn Username (optional):</label>
+        <input type="text" id="jobLinkedIn" name="jobLinkedIn" />
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Online Profiles</legend>
+      <div>
+        <label for="githubUsername">GitHub Username (Primary):</label>
+        <input type="text" id="githubUsername" name="githubUsername" />
+      </div>
+      <div>
+        <label for="stravaUsername">Strava Username (Primary):</label>
+        <input type="text" id="stravaUsername" name="stravaUsername" />
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Game Accounts</legend>
+      <div>
+        <label for="gameSteam">Steam Username:</label>
+        <input type="text" id="gameSteam" name="gameSteam" />
+      </div>
+      <div>
+        <label for="gamePsn">PlayStation Network (PSN) ID:</label>
+        <input type="text" id="gamePsn" name="gamePsn" />
+      </div>
+       <div>
+        <label for="gameXbox">Xbox Gamertag:</label>
+        <input type="text" id="gameXbox" name="gameXbox" />
+      </div>
+       <div>
+        <label for="gameNintendo">Nintendo Account:</label>
+        <input type="text" id="gameNintendo" name="gameNintendo" />
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Note</legend>
+      <div>
+        <label for="noteTitle">Note Title:</label>
+        <input type="text" id="noteTitle" name="noteTitle" />
+      </div>
+      <div>
+        <label for="noteContent">Content:</label>
+        <textarea id="noteContent" name="noteContent" rows="4"></textarea>
+      </div>
+    </fieldset>
+
+    <button type="submit">Add Contact</button>
+    <p><a href="/">Cancel and return to Home</a></p>
+  </form>
+</Layout>
