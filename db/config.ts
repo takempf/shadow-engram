@@ -1,13 +1,13 @@
 // db/config.ts
-import { column, defineDb, defineTable } from "astro:db";
+import { column, defineDb, defineTable } from 'astro:db';
 
 const Contact = defineTable({
   columns: {
     id: column.number({ primaryKey: true }),
     slug: column.text(), // New slug field
     createdAt: column.date(),
-    updatedAt: column.date(),
-  },
+    updatedAt: column.date()
+  }
 });
 
 const Names = defineTable({
@@ -17,8 +17,8 @@ const Names = defineTable({
     name: column.text(), // e.g., 'givenName', 'familyName', 'primary'
     value: column.text(),
     createdAt: column.date(),
-    updatedAt: column.date(),
-  },
+    updatedAt: column.date()
+  }
 });
 
 const Addresses = defineTable({
@@ -28,8 +28,8 @@ const Addresses = defineTable({
     name: column.text(), // e.g., 'primary', 'home', 'work'
     value: column.text(), // JSON stringified address data
     createdAt: column.date(),
-    updatedAt: column.date(),
-  },
+    updatedAt: column.date()
+  }
 });
 
 const PhoneNumbers = defineTable({
@@ -39,8 +39,8 @@ const PhoneNumbers = defineTable({
     name: column.text(), // e.g., 'primary', 'mobile', 'work'
     value: column.text(),
     createdAt: column.date(),
-    updatedAt: column.date(),
-  },
+    updatedAt: column.date()
+  }
 });
 
 const EmailAddresses = defineTable({
@@ -50,8 +50,8 @@ const EmailAddresses = defineTable({
     name: column.text(), // e.g., 'primary', 'work'
     value: column.text(), // Should be unique if name is 'primary' - Note: DB level uniqueness for conditional cases might need app logic
     createdAt: column.date(),
-    updatedAt: column.date(),
-  },
+    updatedAt: column.date()
+  }
 });
 
 const Jobs = defineTable({
@@ -63,8 +63,8 @@ const Jobs = defineTable({
     role: column.text(),
     linkedInUsername: column.text({ optional: true }),
     createdAt: column.date(),
-    updatedAt: column.date(),
-  },
+    updatedAt: column.date()
+  }
 });
 
 const GithubProfiles = defineTable({
@@ -74,8 +74,8 @@ const GithubProfiles = defineTable({
     name: column.text(), // e.g., 'primary'
     username: column.text(),
     createdAt: column.date(),
-    updatedAt: column.date(),
-  },
+    updatedAt: column.date()
+  }
 });
 
 const GameAccounts = defineTable({
@@ -85,8 +85,8 @@ const GameAccounts = defineTable({
     platform: column.text(), // e.g., 'steam', 'psn'
     username: column.text(),
     createdAt: column.date(),
-    updatedAt: column.date(),
-  },
+    updatedAt: column.date()
+  }
 });
 
 const StravaAccounts = defineTable({
@@ -96,8 +96,8 @@ const StravaAccounts = defineTable({
     name: column.text(), // e.g., 'primary'
     username: column.text(),
     createdAt: column.date(),
-    updatedAt: column.date(),
-  },
+    updatedAt: column.date()
+  }
 });
 
 const Notes = defineTable({
@@ -107,8 +107,8 @@ const Notes = defineTable({
     name: column.text(), // e.g., 'note title'
     value: column.text(), // For the note content
     createdAt: column.date(),
-    updatedAt: column.date(),
-  },
+    updatedAt: column.date()
+  }
 });
 
 export default defineDb({
@@ -122,6 +122,6 @@ export default defineDb({
     GithubProfiles,
     GameAccounts,
     StravaAccounts,
-    Notes,
-  },
+    Notes
+  }
 });

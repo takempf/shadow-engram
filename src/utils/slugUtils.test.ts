@@ -1,11 +1,11 @@
 // src/utils/slugUtils.test.ts
-import { describe, it, test, expect, vi, beforeEach } from "vitest";
-import { generateUniqueSlug, slugifyName } from "./slugUtils"; // Updated path
+import { describe, it, test, expect, vi, beforeEach } from 'vitest';
+import { generateUniqueSlug, slugifyName } from './slugUtils'; // Updated path
 
 // This will store our mock contacts for each test scenario
 const mockDbContacts = [];
 
-vi.mock("astro:db", () => {
+vi.mock('astro:db', () => {
   // This is the factory function for the mock.
   // It needs to return an object that has all the exports of 'astro:db' that slugUtils.ts uses.
   const actualDbFunctions = {
@@ -24,11 +24,11 @@ vi.mock("astro:db", () => {
 
       if (this.currentQueryConditions) {
         this.currentQueryConditions.forEach((cond) => {
-          if (cond.type === "eq") {
+          if (cond.type === 'eq') {
             results = results.filter(
               (contact) => contact[cond.fieldKey] === cond.value
             );
-          } else if (cond.type === "ne") {
+          } else if (cond.type === 'ne') {
             results = results.filter(
               (contact) => contact[cond.fieldKey] !== cond.value
             );
@@ -41,41 +41,41 @@ vi.mock("astro:db", () => {
       // Clear conditions for the next independent chain of query
       this.currentQueryConditions = [];
       return Promise.resolve(result);
-    }),
+    })
   };
 
   return {
     db: actualDbFunctions,
     Contact: {
-      type: "table",
-      name: "Contact",
-      slug: "Contact.slug", // Using string keys for field access in mock
-      id: "Contact.id",
+      type: 'table',
+      name: 'Contact',
+      slug: 'Contact.slug', // Using string keys for field access in mock
+      id: 'Contact.id'
     },
     eq: vi.fn((field, value) => ({
-      type: "eq",
-      fieldKey: field.toString().split(".")[1],
-      value,
+      type: 'eq',
+      fieldKey: field.toString().split('.')[1],
+      value
     })),
     ne: vi.fn((field, value) => ({
-      type: "ne",
-      fieldKey: field.toString().split(".")[1],
-      value,
-    })),
+      type: 'ne',
+      fieldKey: field.toString().split('.')[1],
+      value
+    }))
   };
 });
 
 // Import 'db' after the mock is set up so the tests can access the mocked db object
-import { db } from "astro:db";
+import { db } from 'astro:db';
 
-describe("slugifyName", () => {
-  test("slugifies a name correctly", () => {
-    const slug = slugifyName("John Doe");
-    expect(slug).toBe("john-doe");
+describe('slugifyName', () => {
+  test('slugifies a name correctly', () => {
+    const slug = slugifyName('John Doe');
+    expect(slug).toBe('john-doe');
   });
 });
 
-describe("generateUniqueSlug", () => {
+describe('generateUniqueSlug', () => {
   beforeEach(() => {
     // Reset mocks and the in-memory database before each test
     vi.clearAllMocks(); // Clears call counts, etc.
@@ -86,75 +86,75 @@ describe("generateUniqueSlug", () => {
     // and vi.clearAllMocks() should reset call history for db.select etc.
   });
 
-  it("should return the original slug if it is unique", async () => {
-    const slug = await generateUniqueSlug("New Contact");
-    expect(slug).toBe("new-contact");
+  it('should return the original slug if it is unique', async () => {
+    const slug = await generateUniqueSlug('New Contact');
+    expect(slug).toBe('new-contact');
     // Check that db.get was called (it's the final step in the query chain)
     expect(db.get).toHaveBeenCalledTimes(1);
   });
 
-  it("should append -1 if original slug exists once", async () => {
-    mockDbContacts.push({ id: 1, name: "Existing", slug: "existing-contact" });
-    const slug = await generateUniqueSlug("Existing Contact");
-    expect(slug).toBe("existing-contact-1");
+  it('should append -1 if original slug exists once', async () => {
+    mockDbContacts.push({ id: 1, name: 'Existing', slug: 'existing-contact' });
+    const slug = await generateUniqueSlug('Existing Contact');
+    expect(slug).toBe('existing-contact-1');
     // Initial check for 'existing-contact', then check for 'existing-contact-1'
     expect(db.get).toHaveBeenCalledTimes(2);
   });
 
-  it("should increment number if multiple slugs exist", async () => {
-    mockDbContacts.push({ id: 1, name: "Test", slug: "test" });
-    mockDbContacts.push({ id: 2, name: "Test 1", slug: "test-1" });
-    const slug = await generateUniqueSlug("Test");
-    expect(slug).toBe("test-2");
+  it('should increment number if multiple slugs exist', async () => {
+    mockDbContacts.push({ id: 1, name: 'Test', slug: 'test' });
+    mockDbContacts.push({ id: 2, name: 'Test 1', slug: 'test-1' });
+    const slug = await generateUniqueSlug('Test');
+    expect(slug).toBe('test-2');
     // test (exists) -> test-1 (exists) -> test-2 (unique)
     expect(db.get).toHaveBeenCalledTimes(3);
   });
 
-  it("should not conflict with its own slug when excludeId is provided and name is unchanged", async () => {
-    mockDbContacts.push({ id: 1, name: "My Contact", slug: "my-contact" });
+  it('should not conflict with its own slug when excludeId is provided and name is unchanged', async () => {
+    mockDbContacts.push({ id: 1, name: 'My Contact', slug: 'my-contact' });
     // Simulating editing contact '1' but keeping its name the same
-    const slug = await generateUniqueSlug("My Contact", 1);
-    expect(slug).toBe("my-contact");
+    const slug = await generateUniqueSlug('My Contact', 1);
+    expect(slug).toBe('my-contact');
     // Initial check for 'my-contact' (excluding id 1). Should not find a conflict.
     expect(db.get).toHaveBeenCalledTimes(1);
   });
 
-  it("should generate a new numbered slug if name changes to an existing slug (even if that slug belongs to another contact)", async () => {
+  it('should generate a new numbered slug if name changes to an existing slug (even if that slug belongs to another contact)', async () => {
     mockDbContacts.push({
       id: 1,
-      name: "Original Name",
-      slug: "original-name",
+      name: 'Original Name',
+      slug: 'original-name'
     });
     mockDbContacts.push({
       id: 2,
-      name: "Other Contact",
-      slug: "new-name-target",
+      name: 'Other Contact',
+      slug: 'new-name-target'
     }); // This slug exists for contact 2
 
     // Contact 1 is being edited, and its name changes to "New Name Target"
-    const slug = await generateUniqueSlug("New Name Target", 1);
+    const slug = await generateUniqueSlug('New Name Target', 1);
     // 'new-name-target' exists (for id 2), so it should become 'new-name-target-1'
-    expect(slug).toBe("new-name-target-1");
+    expect(slug).toBe('new-name-target-1');
     // Check for 'new-name-target' (excluding id 1) - finds contact 2.
     // Check for 'new-name-target-1' (excluding id 1) - finds nothing.
     expect(db.get).toHaveBeenCalledTimes(2);
   });
 
-  it("should correctly generate a unique slug when the base slug exists multiple times for other contacts", async () => {
-    mockDbContacts.push({ id: 2, name: "User Two", slug: "another-user" });
-    mockDbContacts.push({ id: 3, name: "User Three", slug: "another-user-1" });
+  it('should correctly generate a unique slug when the base slug exists multiple times for other contacts', async () => {
+    mockDbContacts.push({ id: 2, name: 'User Two', slug: 'another-user' });
+    mockDbContacts.push({ id: 3, name: 'User Three', slug: 'another-user-1' });
     // Trying to create/update a contact (id 1) to have the name "Another User"
-    const slug = await generateUniqueSlug("Another User", 1);
-    expect(slug).toBe("another-user-2");
+    const slug = await generateUniqueSlug('Another User', 1);
+    expect(slug).toBe('another-user-2');
     expect(db.get).toHaveBeenCalledTimes(3); // another-user, another-user-1, another-user-2
   });
 
-  it("should handle empty string name gracefully", async () => {
+  it('should handle empty string name gracefully', async () => {
     // slugify('') is ''
-    const slug = await generateUniqueSlug("");
-    expect(slug).toBe(""); // or perhaps 'n-a' or some default if slugify('') is empty
-    mockDbContacts.push({ id: 1, name: "Empty Slug Test", slug: "" });
-    const slug2 = await generateUniqueSlug("");
-    expect(slug2).toBe("-1"); // slugify('') is '', so it becomes '-1'
+    const slug = await generateUniqueSlug('');
+    expect(slug).toBe(''); // or perhaps 'n-a' or some default if slugify('') is empty
+    mockDbContacts.push({ id: 1, name: 'Empty Slug Test', slug: '' });
+    const slug2 = await generateUniqueSlug('');
+    expect(slug2).toBe('-1'); // slugify('') is '', so it becomes '-1'
   });
 });

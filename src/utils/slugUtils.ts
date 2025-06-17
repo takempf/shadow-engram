@@ -1,6 +1,6 @@
 // src/utils/slugUtils.ts
-import { db, Contact, eq, ne } from "astro:db";
-import slugify from "slugify";
+import { db, Contact, eq, ne } from 'astro:db';
+import slugify from 'slugify';
 
 export function slugifyName(name: string): string {
   return slugify(name, { lower: true, strict: true });

@@ -15,13 +15,16 @@ describe('Contact List Page (index.astro) - Data Logic', () => {
 
     contactsForPage = await Promise.all(
       fetchedContacts.map(async (contact) => {
-        const primaryNameEntry = await db.select({ value: Names.value }) // Select only the 'value' field
-                                       .from(Names)
-                                       .where(and(eq(Names.contactId, contact.id), eq(Names.name, 'primary')))
-                                       .get();
+        const primaryNameEntry = await db
+          .select({ value: Names.value }) // Select only the 'value' field
+          .from(Names)
+          .where(
+            and(eq(Names.contactId, contact.id), eq(Names.name, 'primary'))
+          )
+          .get();
         return {
           ...contact, // Spread all original contact fields
-          displayName: primaryNameEntry ? primaryNameEntry.value : contact.slug,
+          displayName: primaryNameEntry ? primaryNameEntry.value : contact.slug
         };
       })
     );
@@ -35,11 +38,15 @@ describe('Contact List Page (index.astro) - Data Logic', () => {
     expect(contactsForPage.length).toBeGreaterThan(0); // Ensure there's data to check
 
     for (const contact of contactsForPage) {
-      const correspondingMockContact = mockContacts.find(mc => mc.id === contact.id);
+      const correspondingMockContact = mockContacts.find(
+        (mc) => mc.id === contact.id
+      );
       expect(correspondingMockContact).toBeDefined(); // Sanity check: contact from page logic must exist in original mock
 
       // Find the expected primary name from the raw mock Names data
-      const expectedPrimaryName = allMockNames.find(mn => mn.contactId === contact.id && mn.name === 'primary');
+      const expectedPrimaryName = allMockNames.find(
+        (mn) => mn.contactId === contact.id && mn.name === 'primary'
+      );
 
       if (expectedPrimaryName) {
         expect(contact.displayName).toBe(expectedPrimaryName.value);
@@ -51,18 +58,24 @@ describe('Contact List Page (index.astro) - Data Logic', () => {
   });
 
   it('should include all original contact properties (id, slug, createdAt, updatedAt)', () => {
-     expect(contactsForPage.length).toBeGreaterThan(0);
+    expect(contactsForPage.length).toBeGreaterThan(0);
 
-     for (const pageContact of contactsForPage) {
-        const correspondingMockContact = mockContacts.find(mc => mc.id === pageContact.id);
-        expect(correspondingMockContact).toBeDefined();
+    for (const pageContact of contactsForPage) {
+      const correspondingMockContact = mockContacts.find(
+        (mc) => mc.id === pageContact.id
+      );
+      expect(correspondingMockContact).toBeDefined();
 
-        expect(pageContact.id).toBe(correspondingMockContact.id);
-        expect(pageContact.slug).toBe(correspondingMockContact.slug);
-        // Compare dates by converting to a consistent format like ISO string or timestamp
-        expect(new Date(pageContact.createdAt).toISOString()).toBe(new Date(correspondingMockContact.createdAt).toISOString());
-        expect(new Date(pageContact.updatedAt).toISOString()).toBe(new Date(correspondingMockContact.updatedAt).toISOString());
-     }
+      expect(pageContact.id).toBe(correspondingMockContact.id);
+      expect(pageContact.slug).toBe(correspondingMockContact.slug);
+      // Compare dates by converting to a consistent format like ISO string or timestamp
+      expect(new Date(pageContact.createdAt).toISOString()).toBe(
+        new Date(correspondingMockContact.createdAt).toISOString()
+      );
+      expect(new Date(pageContact.updatedAt).toISOString()).toBe(
+        new Date(correspondingMockContact.updatedAt).toISOString()
+      );
+    }
   });
 
   it('should have displayName fall back to slug if primary name is missing', async () => {
@@ -73,13 +86,17 @@ describe('Contact List Page (index.astro) - Data Logic', () => {
     // The current mock data ensures all contacts have primary names.
     // Let's verify the first contact:
     const firstContactOnPage = contactsForPage[0];
-    const primaryNameForFirst = allMockNames.find(mn => mn.contactId === firstContactOnPage.id && mn.name === 'primary');
+    const primaryNameForFirst = allMockNames.find(
+      (mn) => mn.contactId === firstContactOnPage.id && mn.name === 'primary'
+    );
 
     if (primaryNameForFirst) {
       expect(firstContactOnPage.displayName).toBe(primaryNameForFirst.value);
     } else {
       // This case would only be hit if mockContacts[0] had no primary name in allMockNames
-      const mockContactEntry = mockContacts.find(mc => mc.id === firstContactOnPage.id);
+      const mockContactEntry = mockContacts.find(
+        (mc) => mc.id === firstContactOnPage.id
+      );
       expect(firstContactOnPage.displayName).toBe(mockContactEntry.slug);
     }
     // This test is somewhat redundant with the loop in 'should correctly determine displayName'

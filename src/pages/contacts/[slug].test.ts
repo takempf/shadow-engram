@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Import the mock db and all mock table schemas. This will use the mock from vitest.config.ts alias.
 import {
   db,
@@ -13,8 +13,8 @@ import {
   StravaAccounts,
   Notes,
   eq,
-  and,
-} from "astro:db";
+  and
+} from 'astro:db';
 
 // Import the raw mock data directly to verify against.
 // Path is relative from this test file (src/pages/contacts/) to src/mocks/
@@ -28,11 +28,11 @@ import {
   mockGithubProfiles as allMockGithubs,
   mockGameAccounts as allMockGames,
   mockStravaAccounts as allMockStravas,
-  mockNotes as allMockNotes,
-} from "../../mocks/astro-db.js";
+  mockNotes as allMockNotes
+} from '../../mocks/astro-db.js';
 
-describe("Contact Page ([slug].astro) - getStaticPaths", () => {
-  it("should generate correct paths with slugs from mock Contacts", async () => {
+describe('Contact Page ([slug].astro) - getStaticPaths', () => {
+  it('should generate correct paths with slugs from mock Contacts', async () => {
     // The mock db is automatically used due to Vitest alias.
     const contactsFromDbMock = await db
       .select({ slug: Contact.slug })
@@ -49,7 +49,7 @@ describe("Contact Page ([slug].astro) - getStaticPaths", () => {
         }
         return {
           params: { slug: c.slug },
-          props: { slug: c.slug }, // getStaticPaths now only passes the slug
+          props: { slug: c.slug } // getStaticPaths now only passes the slug
         };
       })
       .filter((path) => path !== null);
@@ -67,7 +67,7 @@ describe("Contact Page ([slug].astro) - getStaticPaths", () => {
   });
 });
 
-describe("Contact Page ([slug].astro) - Page Data Logic", () => {
+describe('Contact Page ([slug].astro) - Page Data Logic', () => {
   // Test data fetching for the first mock contact ('timothy-kempf')
   const testContactSlug = mockContacts[0].slug;
   let contactDataForPage; // This will hold the data prepared as if by the Astro page script
@@ -82,8 +82,8 @@ describe("Contact Page ([slug].astro) - Page Data Logic", () => {
     if (!contact) {
       contactDataForPage = {
         contact: null,
-        error: "Contact not found",
-        slug: testContactSlug,
+        error: 'Contact not found',
+        slug: testContactSlug
       };
       return;
     }
@@ -138,7 +138,7 @@ describe("Contact Page ([slug].astro) - Page Data Logic", () => {
       .all();
 
     let displayName = contact.slug; // Default
-    const primaryNameObj = names.find((n) => n.name === "primary");
+    const primaryNameObj = names.find((n) => n.name === 'primary');
     if (primaryNameObj) displayName = primaryNameObj.value;
     else if (names.length > 0) displayName = names[0].value; // Fallback as in page
 
@@ -154,11 +154,11 @@ describe("Contact Page ([slug].astro) - Page Data Logic", () => {
       stravaAccounts,
       notes,
       displayName,
-      slug: testContactSlug,
+      slug: testContactSlug
     };
   });
 
-  it("should fetch the main contact details correctly", () => {
+  it('should fetch the main contact details correctly', () => {
     expect(contactDataForPage.contact).toBeDefined();
     expect(contactDataForPage.contact.slug).toBe(testContactSlug);
     const expectedContact = mockContacts.find(
@@ -167,10 +167,10 @@ describe("Contact Page ([slug].astro) - Page Data Logic", () => {
     expect(contactDataForPage.contact.id).toBe(expectedContact.id);
   });
 
-  it("should determine the correct displayName", () => {
+  it('should determine the correct displayName', () => {
     const expectedPrimaryName = allMockNames.find(
       (n) =>
-        n.contactId === contactDataForPage.contact.id && n.name === "primary"
+        n.contactId === contactDataForPage.contact.id && n.name === 'primary'
     );
     if (expectedPrimaryName) {
       expect(contactDataForPage.displayName).toBe(expectedPrimaryName.value);
@@ -185,7 +185,7 @@ describe("Contact Page ([slug].astro) - Page Data Logic", () => {
     }
   });
 
-  it("should fetch associated names", () => {
+  it('should fetch associated names', () => {
     const expectedNames = allMockNames.filter(
       (n) => n.contactId === contactDataForPage.contact.id
     );
@@ -196,7 +196,7 @@ describe("Contact Page ([slug].astro) - Page Data Logic", () => {
     });
   });
 
-  it("should fetch associated email addresses", () => {
+  it('should fetch associated email addresses', () => {
     const expectedEmails = allMockEmails.filter(
       (e) => e.contactId === contactDataForPage.contact.id
     );
@@ -213,24 +213,24 @@ describe("Contact Page ([slug].astro) - Page Data Logic", () => {
     });
   });
 
-  it("should fetch associated phone numbers", () => {
+  it('should fetch associated phone numbers', () => {
     const expectedPhones = allMockPhones.filter(
       (p) => p.contactId === contactDataForPage.contact.id
     );
     expect(contactDataForPage.phoneNumbers.length).toBe(expectedPhones.length);
   });
 
-  it("should fetch addresses and the primary address value should be valid JSON", () => {
+  it('should fetch addresses and the primary address value should be valid JSON', () => {
     const expectedAddresses = allMockAddresses.filter(
       (a) => a.contactId === contactDataForPage.contact.id
     );
     expect(contactDataForPage.addresses.length).toBe(expectedAddresses.length);
     const primaryAddress = contactDataForPage.addresses.find(
-      (a) => a.name === "primary"
+      (a) => a.name === 'primary'
     );
     if (primaryAddress) {
       // Only proceed if primary address exists, which it does in mock
-      expect(typeof primaryAddress.value).toBe("string");
+      expect(typeof primaryAddress.value).toBe('string');
       expect(() => JSON.parse(primaryAddress.value)).not.toThrow();
     } else {
       // If no primary address, this part of test might not apply or should assert absence
@@ -239,14 +239,14 @@ describe("Contact Page ([slug].astro) - Page Data Logic", () => {
     }
   });
 
-  it("should fetch jobs", () => {
+  it('should fetch jobs', () => {
     const expectedJobs = allMockJobs.filter(
       (j) => j.contactId === contactDataForPage.contact.id
     );
     expect(contactDataForPage.jobs.length).toBe(expectedJobs.length);
   });
 
-  it("should fetch GitHub profiles", () => {
+  it('should fetch GitHub profiles', () => {
     const expectedGithubs = allMockGithubs.filter(
       (g) => g.contactId === contactDataForPage.contact.id
     );
@@ -255,14 +255,14 @@ describe("Contact Page ([slug].astro) - Page Data Logic", () => {
     );
   });
 
-  it("should fetch game accounts", () => {
+  it('should fetch game accounts', () => {
     const expectedGames = allMockGames.filter(
       (g) => g.contactId === contactDataForPage.contact.id
     );
     expect(contactDataForPage.gameAccounts.length).toBe(expectedGames.length);
   });
 
-  it("should fetch Strava accounts", () => {
+  it('should fetch Strava accounts', () => {
     const expectedStravas = allMockStravas.filter(
       (s) => s.contactId === contactDataForPage.contact.id
     );
@@ -271,7 +271,7 @@ describe("Contact Page ([slug].astro) - Page Data Logic", () => {
     );
   });
 
-  it("should fetch notes and respect orderBy createdAt", () => {
+  it('should fetch notes and respect orderBy createdAt', () => {
     const contactId = contactDataForPage.contact.id;
     // Re-create expected order from raw mock data
     const expectedNotes = allMockNotes
