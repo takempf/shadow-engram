@@ -106,7 +106,11 @@
       aria-label={`Value for ${label}`}
       title="Click to edit"
     >
-      {value || <span class="text-gray-400 dark:text-gray-500 italic">N/A</span>}
+      {#if value}
+        {value}
+      {:else}
+        <span class="text-gray-400 dark:text-gray-500 italic">N/A</span>
+      {/if}
     </div>
   {/if}
 

@@ -1,5 +1,10 @@
 {
   "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "types": ["astro/client", "svelte", "@testing-library/jest-dom"], // Added svelte and jest-dom types
+    "jsx": "preserve", // Common for Svelte 5 if using JSX-like syntax, good to have
+    "jsxImportSource": "svelte" // For Svelte 5 runes mode with JSX
+  },
   "include": [".astro/types.d.ts", "**/*"],
   "exclude": ["dist"]
 }

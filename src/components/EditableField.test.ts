@@ -135,7 +135,9 @@ describe('EditableField.svelte', () => {
         isError: false,
       };
     });
-    vi.mocked(mockCreateMutation).mockImplementation(successMockCreateMutation as any);
+    // vi.mocked(mockCreateMutation).mockImplementation(successMockCreateMutation as any);
+    // Instead of the above, directly assign to the mock fn used by the vi.mock factory
+    (mockCreateMutation as ReturnType<typeof vi.fn>).mockImplementation(successMockCreateMutation);
 
 
     render(EditableField, { ...defaultProps, queryClient: mockQueryClientInstance });

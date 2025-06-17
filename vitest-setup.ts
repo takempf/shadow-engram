@@ -1,5 +1,5 @@
 import '@testing-library/svelte/vitest'; // This should provide Svelte-specific matchers if any
-import '@testing-library/jest-dom/vitest'; // This extends expect with jest-dom matchers, often used with vitest-dom
+import '@testing-library/jest-dom'; // Extends expect with jest-dom matchers
 import { vi } from 'vitest';
 
 // Optional: Mock global browser APIs if not fully provided by jsdom/happy-dom

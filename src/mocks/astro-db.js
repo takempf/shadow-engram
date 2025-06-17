@@ -203,101 +203,66 @@ const allMockTables = {
 };
 
 // --- Mock Column Definitions ---
-const createMockColumn = (name) => ({
+const createMockColumn = (name, type = 'string') => ({ // Added type for potential future use
   name,
+  type,
   toString: () => `mock_column_${name}`
 });
 
-export const Contact = {
-  _tableName: 'Contact', // For easier debugging or alternative mapping
-  id: createMockColumn('id'),
-  slug: createMockColumn('slug'),
-  createdAt: createMockColumn('createdAt'),
-  updatedAt: createMockColumn('updatedAt')
+// Helper to create a full table schema object with columns
+const createTableSchema = (tableName, columnDefinitions) => {
+  const schema = { _tableName: tableName, columns: {} };
+  for (const colName in columnDefinitions) {
+    schema[colName] = createMockColumn(colName, columnDefinitions[colName]);
+    schema.columns[colName] = schema[colName]; // For direct access like Table.columns.contactId
+  }
+  return schema;
 };
-export const Names = {
-  _tableName: 'Names',
-  id: createMockColumn('id'),
-  contactId: createMockColumn('contactId'),
-  name: createMockColumn('name'),
-  value: createMockColumn('value'),
-  createdAt: createMockColumn('createdAt'),
-  updatedAt: createMockColumn('updatedAt')
-};
-export const EmailAddresses = {
-  _tableName: 'EmailAddresses',
-  id: createMockColumn('id'),
-  contactId: createMockColumn('contactId'),
-  name: createMockColumn('name'),
-  value: createMockColumn('value'),
-  createdAt: createMockColumn('createdAt'),
-  updatedAt: createMockColumn('updatedAt')
-};
-export const PhoneNumbers = {
-  _tableName: 'PhoneNumbers',
-  id: createMockColumn('id'),
-  contactId: createMockColumn('contactId'),
-  name: createMockColumn('name'),
-  value: createMockColumn('value'),
-  createdAt: createMockColumn('createdAt'),
-  updatedAt: createMockColumn('updatedAt')
-};
-export const Addresses = {
-  _tableName: 'Addresses',
-  id: createMockColumn('id'),
-  contactId: createMockColumn('contactId'),
-  name: createMockColumn('name'),
-  value: createMockColumn('value'),
-  createdAt: createMockColumn('createdAt'),
-  updatedAt: createMockColumn('updatedAt')
-};
-export const Jobs = {
-  _tableName: 'Jobs',
-  id: createMockColumn('id'),
-  contactId: createMockColumn('contactId'),
-  name: createMockColumn('name'),
-  company: createMockColumn('company'),
-  role: createMockColumn('role'),
-  linkedInUsername: createMockColumn('linkedInUsername'),
-  createdAt: createMockColumn('createdAt'),
-  updatedAt: createMockColumn('updatedAt')
-};
-export const GithubProfiles = {
-  _tableName: 'GithubProfiles',
-  id: createMockColumn('id'),
-  contactId: createMockColumn('contactId'),
-  name: createMockColumn('name'),
-  username: createMockColumn('username'),
-  createdAt: createMockColumn('createdAt'),
-  updatedAt: createMockColumn('updatedAt')
-};
-export const GameAccounts = {
-  _tableName: 'GameAccounts',
-  id: createMockColumn('id'),
-  contactId: createMockColumn('contactId'),
-  platform: createMockColumn('platform'),
-  username: createMockColumn('username'),
-  createdAt: createMockColumn('createdAt'),
-  updatedAt: createMockColumn('updatedAt')
-};
-export const StravaAccounts = {
-  _tableName: 'StravaAccounts',
-  id: createMockColumn('id'),
-  contactId: createMockColumn('contactId'),
-  name: createMockColumn('name'),
-  username: createMockColumn('username'),
-  createdAt: createMockColumn('createdAt'),
-  updatedAt: createMockColumn('updatedAt')
-};
-export const Notes = {
-  _tableName: 'Notes',
-  id: createMockColumn('id'),
-  contactId: createMockColumn('contactId'),
-  name: createMockColumn('name'),
-  value: createMockColumn('value'),
-  createdAt: createMockColumn('createdAt'),
-  updatedAt: createMockColumn('updatedAt')
-};
+
+export const Contact = createTableSchema('Contact', {
+  id: 'number', slug: 'string', FirstName: 'string', LastName: 'string', // Added more fields from ContactDetail
+  PreferredName: 'string', Prefix: 'string', Suffix: 'string', Company: 'string',
+  JobTitle: 'string', Department: 'string', Birthday: 'string', Website: 'string',
+  Source: 'string', Notes: 'string', // Main contact notes
+  OwnerId: 'number', TenantId: 'string',
+  createdAt: 'date', updatedAt: 'date'
+});
+export const Names = createTableSchema('Names', {
+  id: 'number', contactId: 'number', name: 'string', value: 'string',
+  createdAt: 'date', updatedAt: 'date'
+});
+export const EmailAddresses = createTableSchema('EmailAddresses', {
+  id: 'number', contactId: 'number', name: 'string', value: 'string', type: 'string', // Added type
+  createdAt: 'date', updatedAt: 'date'
+});
+export const PhoneNumbers = createTableSchema('PhoneNumbers', {
+  id: 'number', contactId: 'number', name: 'string', value: 'string', type: 'string', // Added type
+  createdAt: 'date', updatedAt: 'date'
+});
+export const Addresses = createTableSchema('Addresses', {
+  id: 'number', contactId: 'number', name: 'string', value: 'string', type: 'string', // Added type
+  createdAt: 'date', updatedAt: 'date'
+});
+export const Jobs = createTableSchema('Jobs', {
+  id: 'number', contactId: 'number', name: 'string', company: 'string', role: 'string',
+  linkedInUsername: 'string', createdAt: 'date', updatedAt: 'date'
+});
+export const GithubProfiles = createTableSchema('GithubProfiles', {
+  id: 'number', contactId: 'number', name: 'string', username: 'string',
+  createdAt: 'date', updatedAt: 'date'
+});
+export const GameAccounts = createTableSchema('GameAccounts', {
+  id: 'number', contactId: 'number', platform: 'string', username: 'string',
+  createdAt: 'date', updatedAt: 'date'
+});
+export const StravaAccounts = createTableSchema('StravaAccounts', {
+  id: 'number', contactId: 'number', name: 'string', username: 'string',
+  createdAt: 'date', updatedAt: 'date'
+});
+export const Notes = createTableSchema('Notes', { // This is for the NotesDetails table in ContactDetail
+  id: 'number', contactId: 'number', name: 'string', value: 'string',
+  createdAt: 'date', updatedAt: 'date'
+});
 
 const tableObjectToDataMap = new Map([
   [Contact, mockContacts],
@@ -423,7 +388,116 @@ export const db = {
     this._conditions = [];
     this._orderBy = null;
     return Promise.resolve(result);
+  },
+
+  // --- INSERT ---
+  _insertTable: null,
+  _insertValues: [],
+  insert: function (tableSchema) {
+    this._insertTable = tableObjectToDataMap.get(tableSchema);
+    if (!this._insertTable) {
+      throw new Error(`Mock DB: insert: Unknown table schema: ${tableSchema}`);
+    }
+    this._insertValues = [];
+    return this;
+  },
+  values: function (records) {
+    if (!this._insertTable) throw new Error('Mock DB: insert().values() called before insert(table)');
+    // Ensure records is an array
+    const recordsArray = Array.isArray(records) ? records : [records];
+    this._insertValues = recordsArray.map(record => ({
+      ...record,
+      id: record.id || Math.floor(Math.random() * 1000000), // Simple ID generation
+      createdAt: record.createdAt || new Date(),
+      updatedAt: record.updatedAt || new Date(),
+    }));
+    return this;
+  },
+  returning: function () { // Optional: pass specific columns to return
+    if (!this._insertTable || this._insertValues.length === 0) {
+      throw new Error('Mock DB: insert().returning() called without table or values');
+    }
+    this._insertValues.forEach(record => this._insertTable.push(record));
+    const inserted = [...this._insertValues]; // Return copies
+    this._insertTable = null;
+    this._insertValues = [];
+    return Promise.resolve(inserted);
+  },
+
+  // --- UPDATE ---
+  _updateTable: null,
+  _updateSetValues: null,
+  // _updateConditions: [], // Already have this._conditions from select
+  update: function (tableSchema) {
+    this._updateTable = tableObjectToDataMap.get(tableSchema);
+    if (!this._updateTable) {
+      throw new Error(`Mock DB: update: Unknown table schema: ${tableSchema}`);
+    }
+    this._updateSetValues = null;
+    this._conditions = []; // Reset conditions for update
+    return this;
+  },
+  set: function (valuesToSet) {
+    if (!this._updateTable) throw new Error('Mock DB: update().set() called before update(table)');
+    this._updateSetValues = { ...valuesToSet, updatedAt: new Date() };
+    return this;
+  },
+  // .where() is reused from select
+  run: async function () { // For update and delete completion
+    if (this._updateTable && this._updateSetValues) { // UPDATE operation
+      if (!this._updateSetValues) throw new Error('Mock DB: update().run() called without .set()');
+
+      let rowsAffected = 0;
+      const originalData = this._updateTable; // Get the actual array
+
+      // Apply conditions to a temporary copy to identify indices
+      const itemsToUpdate = originalData.filter(item => this._conditions.every(condFunc => condFunc(item)));
+
+      itemsToUpdate.forEach(item => {
+        const itemIndex = originalData.findIndex(originalItem => originalItem.id === item.id);
+        if (itemIndex !== -1) {
+          originalData[itemIndex] = { ...originalData[itemIndex], ...this._updateSetValues };
+          rowsAffected++;
+        }
+      });
+
+      this._updateTable = null;
+      this._updateSetValues = null;
+      this._conditions = [];
+      return Promise.resolve({ rowsAffected });
+
+    } else if (this._deleteTable) { // DELETE operation
+      let rowsAffected = 0;
+      const originalData = this._deleteTable; // Get the actual array for deletion
+
+      // Filter out items that should be deleted
+      const itemsToKeep = originalData.filter(item => !this._conditions.every(condFunc => condFunc(item)));
+      rowsAffected = originalData.length - itemsToKeep.length;
+
+      // Replace the original array content
+      originalData.length = 0; // Clear original array
+      itemsToKeep.forEach(item => originalData.push(item)); // Push back items to keep
+
+      this._deleteTable = null;
+      this._conditions = [];
+      return Promise.resolve({ rowsAffected });
+    }
+    throw new Error('Mock DB: run() called in invalid state');
+  },
+
+  // --- DELETE ---
+  _deleteTable: null,
+  // _deleteConditions: [], // Reusing this._conditions
+  delete: function (tableSchema) {
+    this._deleteTable = tableObjectToDataMap.get(tableSchema);
+     if (!this._deleteTable) {
+      throw new Error(`Mock DB: delete: Unknown table schema: ${tableSchema}`);
+    }
+    this._conditions = []; // Reset conditions for delete
+    return this;
   }
+  // .where() is reused
+  // .run() is reused
 };
 
 // --- Condition Functions ---
