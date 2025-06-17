@@ -37,6 +37,17 @@ Make sure all tests pass before submitting a pull request.
 
 - **Framework:** This project is built using Astro. Read the agent-friendly documentation at https://docs.astro.build/llms.txt when you first start working on this project.
 
+## Frontend Technologies
+
+### Svelte
+Svelte is used for creating dynamic frontend components. It shifts work from the browser to the compile step, resulting in highly optimized vanilla JavaScript. For more information, refer to the Svelte documentation: https://svelte.dev/llms.txt
+
+### Bits UI
+Bits UI is utilized for building interface elements. It's a collection of headless UI components for Svelte, offering flexibility and accessibility. Find more details in the Bits UI documentation: https://www.bits-ui.com/docs/llms/llms.txt
+
+### TanStack Query (Svelte)
+TanStack Query (Svelte) is employed for managing dynamic frontend resource requests. It provides powerful data fetching and caching capabilities. Explore the TanStack Query documentation here: https://tanstack.com/query/latest
+
 ## Pull Request (PR) Conventions
 
 To ensure a smooth and efficient review process, please follow these conventions when submitting Pull Requests:

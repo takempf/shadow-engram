@@ -13,13 +13,23 @@
   },
   "dependencies": {
     "@astrojs/db": "^0.15.0",
+    "@astrojs/svelte": "^7.1.0",
+    "@tanstack/svelte-query": "^5.80.7",
     "astro": "^5.9.3",
-    "slugify": "^1.6.6"
+    "bits-ui": "^2.8.0",
+    "clsx": "^2.1.1",
+    "slugify": "^1.6.6",
+    "svelte": "^5.34.3",
+    "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.1.0",
+    "@testing-library/svelte": "^5.2.8",
+    "@vitest/ui": "^3.2.3",
     "happy-dom": "^18.0.1",
     "jsdom": "^26.1.0",
     "prettier": "^3.5.3",
-    "vitest": "^3.2.3"
+    "vitest": "^3.2.3",
+    "vitest-dom": "^0.1.1"
   }
 }
